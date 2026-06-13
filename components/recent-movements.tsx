@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { ShoppingBag, Undo2, Package } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatBRL, type Movement } from '@/lib/constants'
@@ -25,7 +26,9 @@ function formatTime(date: Date): string {
  * @returns The rendered React element.
  */
 export function RecentMovements({ movements }: { movements: Movement[] }) {
-  if (movements.length === 0) {
+  const recentList = useMemo(() => movements.slice(0, 20), [movements])
+
+  if (recentList.length === 0) {
     return null
   }
 
@@ -35,7 +38,7 @@ export function RecentMovements({ movements }: { movements: Movement[] }) {
         Movimentações recentes
       </h2>
       <ul className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
-        {movements.map((m, i) => {
+        {recentList.map((m, i) => {
           const isSale = m.type === 'sale'
           const isReturn = m.type === 'return'
           const isRestock = m.type === 'restock'

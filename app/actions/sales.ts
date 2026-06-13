@@ -138,52 +138,49 @@ export async function getTodaySummary() {
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
 
-    const [row] = await db
+    const todayMovements = await db
       .select({
-        totalSales: sql<string>`COALESCE(SUM(CASE WHEN ${sales.type} = 'sale' THEN ${sales.total} ELSE 0 END), 0)`,
-        countSales: sql<number>`COUNT(*) FILTER (WHERE ${sales.type} = 'sale')`,
-        countReturns: sql<number>`COUNT(*) FILTER (WHERE ${sales.type} = 'return')`,
-        itemsSold: sql<number>`COALESCE(SUM(CASE WHEN ${sales.type} = 'sale' THEN ${sales.quantity} ELSE 0 END), 0)`,
+        type: sales.type,
+        total: sales.total,
+        quantity: sales.quantity,
+        paymentMethod: sales.paymentMethod,
       })
       .from(sales)
       .where(and(eq(sales.userId, userId), gte(sales.createdAt, startOfDay)))
 
-    const rowsPayment = await db
-      .select({
-        paymentMethod: sales.paymentMethod,
-        totalSales: sql<string>`COALESCE(SUM(${sales.total}), 0)`,
-      })
-      .from(sales)
-      .where(
-        and(
-          eq(sales.userId, userId),
-          eq(sales.type, 'sale'),
-          gte(sales.createdAt, startOfDay)
-        )
-      )
-      .groupBy(sales.paymentMethod)
-
+    let totalSales = 0
+    let countSales = 0
+    let countReturns = 0
+    let itemsSold = 0
     const paymentBreakdown = {
       Pix: 0,
       'Cartão': 0,
       Dinheiro: 0,
     }
 
-    for (const r of rowsPayment) {
-      if (r.paymentMethod === 'Pix') {
-        paymentBreakdown.Pix = Number(r.totalSales ?? 0)
-      } else if (r.paymentMethod === 'Cartão') {
-        paymentBreakdown['Cartão'] = Number(r.totalSales ?? 0)
-      } else if (r.paymentMethod === 'Dinheiro') {
-        paymentBreakdown.Dinheiro = Number(r.totalSales ?? 0)
+    for (const m of todayMovements) {
+      if (m.type === 'sale') {
+        const val = Number(m.total)
+        totalSales += val
+        countSales += 1
+        itemsSold += m.quantity
+        if (m.paymentMethod === 'Pix') {
+          paymentBreakdown.Pix += val
+        } else if (m.paymentMethod === 'Cartão') {
+          paymentBreakdown['Cartão'] += val
+        } else if (m.paymentMethod === 'Dinheiro') {
+          paymentBreakdown.Dinheiro += val
+        }
+      } else if (m.type === 'return') {
+        countReturns += 1
       }
     }
 
     return {
-      totalSales: Number(row?.totalSales ?? 0),
-      countSales: Number(row?.countSales ?? 0),
-      countReturns: Number(row?.countReturns ?? 0),
-      itemsSold: Number(row?.itemsSold ?? 0),
+      totalSales,
+      countSales,
+      countReturns,
+      itemsSold,
       paymentBreakdown,
     }
   } catch (err) {

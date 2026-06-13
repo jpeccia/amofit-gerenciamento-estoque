@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useTransition, useMemo } from 'react'
 import { RotateCcw, ShoppingBag, Undo2, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBRL, type Movement } from '@/lib/constants'
@@ -35,20 +35,22 @@ export function RecentHistory({
 }) {
   const [isPending, startTransition] = useTransition()
 
-  const today = new Date()
-  const todayStart = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  ).getTime()
-  const todayEnd = todayStart + 24 * 60 * 60 * 1000
+  const dailyMovements = useMemo(() => {
+    const today = new Date()
+    const todayStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    ).getTime()
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000
 
-  const dailyMovements = movements
-    .filter((m) => {
-      const time = new Date(m.createdAt).getTime()
-      return time >= todayStart && time < todayEnd
-    })
-    .slice(0, 5)
+    return movements
+      .filter((m) => {
+        const time = new Date(m.createdAt).getTime()
+        return time >= todayStart && time < todayEnd
+      })
+      .slice(0, 5)
+  }, [movements])
 
   if (dailyMovements.length === 0) {
     return (

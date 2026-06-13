@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo, memo } from 'react'
 import {
   Minus,
   Plus,
@@ -47,20 +47,24 @@ export function StockList({
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedSize, setSelectedSize] = useState<string>('Todos')
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-    const matchesCategory =
-      selectedCategory === 'Todos' || product.category === selectedCategory
-    const matchesSize = selectedSize === 'Todos' || product.size === selectedSize
-    return matchesSearch && matchesCategory && matchesSize
-  })
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch = product.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+      const matchesCategory =
+        selectedCategory === 'Todos' || product.category === selectedCategory
+      const matchesSize = selectedSize === 'Todos' || product.size === selectedSize
+      return matchesSearch && matchesCategory && matchesSize
+    })
+  }, [products, searchQuery, selectedCategory, selectedSize])
 
-  const totalStockValue = products.reduce(
-    (acc, p) => acc + Number(p.price) * p.quantity,
-    0
-  )
+  const totalStockValue = useMemo(() => {
+    return products.reduce(
+      (acc, p) => acc + Number(p.price) * p.quantity,
+      0
+    )
+  }, [products])
 
   function handleClearFilters() {
     setSearchQuery('')
@@ -258,7 +262,7 @@ export function StockList({
  * @param props The product item to render along with callbacks.
  * @returns The rendered React element.
  */
-function ProductCard({
+const ProductCard = memo(function ProductCard({
   product,
   onAdjustStock,
   onDeleteProduct,
@@ -369,7 +373,7 @@ function ProductCard({
       </div>
     </li>
   )
-}
+})
 
 /**
  * Renders the visual UI when the product stock list is completely empty.

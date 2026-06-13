@@ -6,6 +6,7 @@ import {
   serial,
   integer,
   numeric,
+  index,
 } from 'drizzle-orm/pg-core'
 
 // --- Better Auth required tables -------------------------------------------
@@ -72,7 +73,9 @@ export const products = pgTable('products', {
   quantity: integer('quantity').notNull().default(0),
   price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
-})
+}, (table) => [
+  index('products_user_id_idx').on(table.userId),
+])
 
 export const sales = pgTable('sales', {
   id: serial('id').primaryKey(),
@@ -87,7 +90,9 @@ export const sales = pgTable('sales', {
     .default('0'),
   total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
   paymentMethod: text('paymentMethod').notNull(),
-  // 'sale' = venda concretizada, 'return' = retorno/não vendido
   type: text('type').notNull().default('sale'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
-})
+}, (table) => [
+  index('sales_user_id_idx').on(table.userId),
+  index('sales_created_at_idx').on(table.createdAt),
+])
