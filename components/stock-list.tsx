@@ -9,11 +9,13 @@ import {
   Package,
   Search,
   Share2,
+  Pencil,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AddProductDialog } from '@/components/add-product-dialog'
+import { EditProductDialog } from '@/components/edit-product-dialog'
 import { formatBRL, CATEGORIES, SIZES, type Product } from '@/lib/constants'
 
 /**
@@ -30,6 +32,7 @@ export function StockList({
   onAdjustStock,
   onDeleteProduct,
   onAddProduct,
+  onUpdateProduct,
 }: {
   products: Product[]
   onAdjustStock: (id: number, delta: number) => Promise<void>
@@ -40,9 +43,22 @@ export function StockList({
     size: string
     quantity: number
     price: number
+    colors?: string
   }) => Promise<void>
+  onUpdateProduct: (
+    id: number,
+    input: {
+      name: string
+      category: string
+      size: string
+      price: number
+      colors?: string
+    }
+  ) => Promise<void>
 }) {
   const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedSize, setSelectedSize] = useState<string>('Todos')
@@ -241,6 +257,10 @@ export function StockList({
               product={product}
               onAdjustStock={onAdjustStock}
               onDeleteProduct={onDeleteProduct}
+              onEditClick={(prod) => {
+                setEditProduct(prod)
+                setEditOpen(true)
+              }}
             />
           ))}
         </ul>
@@ -251,13 +271,19 @@ export function StockList({
         onOpenChange={setAddOpen}
         onAddProduct={onAddProduct}
       />
+      <EditProductDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        product={editProduct}
+        onUpdateProduct={onUpdateProduct}
+      />
     </section>
   )
 }
 
 /**
  * Renders an individual product card item showing details, stock adjustments,
- * deletion capability, and low stock warnings.
+ * deletion capability, edit option, and low stock warnings.
  *
  * @param props The product item to render along with callbacks.
  * @returns The rendered React element.
@@ -266,10 +292,12 @@ const ProductCard = memo(function ProductCard({
   product,
   onAdjustStock,
   onDeleteProduct,
+  onEditClick,
 }: {
   product: Product
   onAdjustStock: (id: number, delta: number) => Promise<void>
   onDeleteProduct: (id: number) => Promise<void>
+  onEditClick: (product: Product) => void
 }) {
   const [isPending, startTransition] = useTransition()
   const lowStock = product.quantity < 3
@@ -319,6 +347,12 @@ const ProductCard = memo(function ProductCard({
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
           <span>{product.category}</span>
+          {product.colors && (
+            <>
+              <span aria-hidden>•</span>
+              <span className="text-xs">Cores: {product.colors}</span>
+            </>
+          )}
           <span aria-hidden>•</span>
           <span className="font-medium text-foreground">
             {formatBRL(Number(product.price))}
@@ -359,6 +393,16 @@ const ProductCard = memo(function ProductCard({
           aria-label={`Aumentar estoque de ${product.name}`}
         >
           <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-9 w-9 rounded-full text-muted-foreground hover:text-brand-purple hover:bg-brand-purple/10"
+          onClick={() => onEditClick(product)}
+          disabled={isPending}
+          aria-label={`Editar ${product.name}`}
+        >
+          <Pencil className="h-4 w-4" />
         </Button>
         <Button
           size="icon"

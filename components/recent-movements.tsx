@@ -73,7 +73,11 @@ export function RecentMovements({ movements }: { movements: Movement[] }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">
                   {m.productName}
-                  <span className="text-muted-foreground"> · {m.size}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    · {m.size}
+                    {m.color ? ` (${m.color})` : ''}
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {formatTime(m.createdAt)} · {m.quantity} un.

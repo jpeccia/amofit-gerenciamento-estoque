@@ -50,6 +50,7 @@ export async function createProduct(input: {
   size: string
   quantity: number
   price: number
+  colors?: string
 }) {
   const userId = await getUserId()
 
@@ -90,6 +91,7 @@ export async function createProduct(input: {
       size: input.size,
       quantity: Math.max(0, Math.floor(input.quantity)),
       price: input.price.toFixed(2),
+      colors: input.colors ? input.colors.trim() : null,
     })
     .returning()
 
@@ -154,5 +156,58 @@ export async function deleteProduct(id: number) {
   await db
     .delete(products)
     .where(and(eq(products.id, id), eq(products.userId, userId)))
+  revalidatePath('/')
+}
+
+/**
+ * Updates a product's properties by its ID.
+ *
+ * @param id The product database ID.
+ * @param input The object containing new property values.
+ */
+export async function updateProduct(
+  id: number,
+  input: {
+    name: string
+    category: string
+    size: string
+    price: number
+    colors?: string
+  }
+) {
+  const userId = await getUserId()
+
+  if (
+    typeof input.name !== 'string' ||
+    !input.name.trim() ||
+    input.name.length > 100
+  ) {
+    throw new Error('Nome do produto deve ter entre 1 e 100 caracteres')
+  }
+  if (!CATEGORIES.includes(input.category as any)) {
+    throw new Error('Categoria do produto inválida')
+  }
+  if (!SIZES.includes(input.size as any)) {
+    throw new Error('Tamanho do produto inválido')
+  }
+  if (
+    typeof input.price !== 'number' ||
+    input.price <= 0 ||
+    Number.isNaN(input.price)
+  ) {
+    throw new Error('Preço do produto deve ser maior que zero')
+  }
+
+  await db
+    .update(products)
+    .set({
+      name: input.name.trim(),
+      category: input.category,
+      size: input.size,
+      price: input.price.toFixed(2),
+      colors: input.colors ? input.colors.trim() : null,
+    })
+    .where(and(eq(products.id, id), eq(products.userId, userId)))
+
   revalidatePath('/')
 }

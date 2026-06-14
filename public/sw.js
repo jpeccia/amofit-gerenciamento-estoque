@@ -10,7 +10,7 @@ const ASSETS_TO_CACHE = [
   '/',
   '/manifest.webmanifest',
   '/logoamofit.jpeg',
-  '/globals.css',
+  '/icon.svg',
 ];
 
 self.addEventListener('install', (event) => {

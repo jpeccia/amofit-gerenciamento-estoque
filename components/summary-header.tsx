@@ -44,6 +44,18 @@ export function SummaryHeader({
         </div>
       </div>
 
+      {summary.totalPending > 0 && (
+        <div className="mt-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 flex items-center justify-between text-xs text-amber-700 dark:text-amber-400">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span>A receber hoje (Fiados):</span>
+          </div>
+          <span className="font-heading font-extrabold text-sm text-amber-600 dark:text-amber-500">
+            {formatBRL(summary.totalPending)}
+          </span>
+        </div>
+      )}
+
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Stat
           icon={<TrendingUp className="h-4 w-4" />}

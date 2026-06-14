@@ -21,6 +21,7 @@ export type Product = {
   size: string
   quantity: number
   price: string
+  colors?: string | null
   createdAt: Date
 }
 
@@ -36,6 +37,10 @@ export type Movement = {
   total: string
   paymentMethod: string
   type: string
+  color?: string | null
+  installments?: number | null
+  paymentStatus?: string | null
+  customerName?: string | null
   createdAt: Date
 }
 
@@ -47,6 +52,7 @@ export type Summary = {
   countSales: number
   countReturns: number
   itemsSold: number
+  totalPending: number
   paymentBreakdown: {
     Pix: number
     'Cartão': number

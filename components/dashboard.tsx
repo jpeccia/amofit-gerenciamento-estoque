@@ -31,8 +31,9 @@ import {
   registerReturn,
   undoMovement,
   clearTodaySales,
+  markSaleAsPaid,
 } from '@/app/actions/sales'
-import { createProduct, adjustStock, deleteProduct } from '@/app/actions/products'
+import { createProduct, adjustStock, deleteProduct, updateProduct } from '@/app/actions/products'
 import type { Movement, Product, Summary } from '@/lib/constants'
 
 /**
@@ -60,6 +61,7 @@ function recalculateSummary(movementsList: Movement[]): Summary {
 
   let totalSales = 0
   let itemsSold = 0
+  let totalPending = 0
   const paymentBreakdown = {
     Pix: 0,
     'Cartão': 0,
@@ -71,6 +73,9 @@ function recalculateSummary(movementsList: Movement[]): Summary {
       const val = Number(m.total)
       totalSales += val
       itemsSold += m.quantity
+      if (m.paymentStatus === 'pending') {
+        totalPending += val
+      }
       if (m.paymentMethod === 'Pix') {
         paymentBreakdown.Pix += val
       } else if (m.paymentMethod === 'Cartão') {
@@ -86,6 +91,7 @@ function recalculateSummary(movementsList: Movement[]): Summary {
     countSales,
     countReturns,
     itemsSold,
+    totalPending,
     paymentBreakdown,
   }
 }
@@ -120,20 +126,19 @@ export function Dashboard({
   const [localSummary, setLocalSummary] = useState<Summary>(summary)
 
   useEffect(() => {
-    const cachedProducts = localStorage.getItem('amofit_products')
-    const cachedMovements = localStorage.getItem('amofit_movements')
-    const cachedSummary = localStorage.getItem('amofit_summary')
+    setLocalProducts(products)
+    localStorage.setItem('amofit_products', JSON.stringify(products))
+  }, [products])
 
-    if (cachedProducts && cachedMovements && cachedSummary) {
-      setLocalProducts(JSON.parse(cachedProducts))
-      setLocalMovements(JSON.parse(cachedMovements))
-      setLocalSummary(JSON.parse(cachedSummary))
-    } else {
-      localStorage.setItem('amofit_products', JSON.stringify(products))
-      localStorage.setItem('amofit_movements', JSON.stringify(movements))
-      localStorage.setItem('amofit_summary', JSON.stringify(summary))
-    }
-  }, [products, movements, summary])
+  useEffect(() => {
+    setLocalMovements(movements)
+    localStorage.setItem('amofit_movements', JSON.stringify(movements))
+  }, [movements])
+
+  useEffect(() => {
+    setLocalSummary(summary)
+    localStorage.setItem('amofit_summary', JSON.stringify(summary))
+  }, [summary])
 
   async function handleSignOut() {
     await authClient.signOut()
@@ -147,6 +152,7 @@ export function Dashboard({
     size: string
     quantity: number
     price: number
+    colors?: string
   }) => {
     try {
       await createProduct(input)
@@ -162,6 +168,7 @@ export function Dashboard({
       size: input.size,
       quantity: Math.max(0, Math.floor(input.quantity)),
       price: input.price.toFixed(2),
+      colors: input.colors || null,
       createdAt: new Date(),
     }
 
@@ -203,45 +210,117 @@ export function Dashboard({
     localStorage.setItem('amofit_products', JSON.stringify(updated))
   }
 
-  const handleRegisterSale = async (
-    productId: number,
-    qty: number,
-    paymentMethod: string
+  /**
+   * Updates a product's details both in the backend database and local state/storage.
+   *
+   * @param id The product database ID.
+   * @param input The updated values including name, category, size, price, and optional colors.
+   */
+  const handleUpdateProduct = async (
+    id: number,
+    input: {
+      name: string
+      category: string
+      size: string
+      price: number
+      colors?: string
+    }
   ) => {
     try {
-      await registerSale({ productId, quantity: qty, paymentMethod })
+      await updateProduct(id, input)
     } catch (err) {
       console.warn('Backend sync failed, running client simulation:', err)
     }
 
-    const targetProduct = localProducts.find((p) => p.id === productId)
-    if (!targetProduct) {
-      throw new Error('Produto não encontrado')
-    }
+    const updated = localProducts
+      .map((p) => {
+        if (p.id === id) {
+          return {
+            ...p,
+            name: input.name.trim(),
+            category: input.category,
+            size: input.size,
+            price: input.price.toFixed(2),
+            colors: input.colors || null,
+          }
+        }
+        return p
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
 
-    const updatedProducts = localProducts.map((p) => {
-      if (p.id === productId) {
-        return { ...p, quantity: Math.max(0, p.quantity - qty) }
+    setLocalProducts(updated)
+    localStorage.setItem('amofit_products', JSON.stringify(updated))
+  }
+
+  /**
+   * Registers a sale with multiple products, both syncing to backend (if online)
+   * and simulating locally for PWA/offline availability.
+   *
+   * @param items The array of selected items with their product IDs, quantities, and selected color.
+   * @param paymentMethod The selected payment method string.
+   * @param installments Optional number of installments for the sale.
+   * @param paymentStatus Optional payment status ('paid' or 'pending').
+   * @param customerName Optional name of the customer.
+   */
+  const handleRegisterSale = async (
+    items: { productId: number; quantity: number; color?: string }[],
+    paymentMethod: string,
+    installments?: number,
+    paymentStatus?: string,
+    customerName?: string
+  ) => {
+    try {
+      const response = await registerSale({
+        items,
+        paymentMethod,
+        installments,
+        paymentStatus,
+        customerName,
+      })
+      if (response && !response.success && response.error) {
+        throw new Error(response.error.message)
       }
-      return p
-    })
-
-    const newMovement: Movement = {
-      id: Date.now(),
-      userId: userName,
-      productId,
-      productName: targetProduct.name,
-      category: targetProduct.category,
-      size: targetProduct.size,
-      quantity: qty,
-      unitPrice: targetProduct.price,
-      total: (Number(targetProduct.price) * qty).toFixed(2),
-      paymentMethod,
-      type: 'sale',
-      createdAt: new Date(),
+    } catch (err) {
+      console.warn('Backend sync failed, running client simulation:', err)
     }
 
-    const updatedMovements = [newMovement, ...localMovements]
+    let updatedProducts = [...localProducts]
+    const newMovements: Movement[] = []
+
+    for (const item of items) {
+      const targetProduct = updatedProducts.find((p) => p.id === item.productId)
+      if (!targetProduct) {
+        throw new Error('Produto não encontrado')
+      }
+
+      updatedProducts = updatedProducts.map((p) => {
+        if (p.id === item.productId) {
+          return { ...p, quantity: Math.max(0, p.quantity - item.quantity) }
+        }
+        return p
+      })
+
+      newMovements.push({
+        id: Date.now() + Math.random(),
+        userId: userName,
+        productId: item.productId,
+        productName: targetProduct.name,
+        category: targetProduct.category,
+        size: targetProduct.size,
+        quantity: item.quantity,
+        unitPrice: targetProduct.price,
+        total: (Number(targetProduct.price) * item.quantity).toFixed(2),
+        paymentMethod,
+        color: item.color || null,
+        installments: installments || 1,
+        paymentStatus: paymentStatus || 'paid',
+        customerName: customerName || null,
+        type: 'sale',
+        createdAt: new Date(),
+      })
+    }
+
+    const updatedMovements = [...newMovements, ...localMovements]
     const updatedSummary = recalculateSummary(updatedMovements)
 
     setLocalProducts(updatedProducts)
@@ -249,6 +328,37 @@ export function Dashboard({
     setLocalSummary(updatedSummary)
 
     localStorage.setItem('amofit_products', JSON.stringify(updatedProducts))
+    localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
+    localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
+  }
+
+  /**
+   * Marks a pending sale movement as paid in both the database and client-side storage.
+   *
+   * @param saleId The database ID of the sale to be marked as paid.
+   */
+  const handleMarkSaleAsPaid = async (saleId: number) => {
+    try {
+      const response = await markSaleAsPaid(saleId)
+      if (response && !response.success && response.error) {
+        throw new Error(response.error.message)
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, running client simulation:', err)
+    }
+
+    const updatedMovements = localMovements.map((m) => {
+      if (m.id === saleId) {
+        return { ...m, paymentStatus: 'paid' }
+      }
+      return m
+    })
+
+    const updatedSummary = recalculateSummary(updatedMovements)
+
+    setLocalMovements(updatedMovements)
+    setLocalSummary(updatedSummary)
+
     localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
     localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
   }
@@ -435,6 +545,7 @@ export function Dashboard({
         <RecentHistory
           movements={localMovements}
           onUndoMovement={handleUndoMovement}
+          onMarkSaleAsPaid={handleMarkSaleAsPaid}
         />
 
         <StockList
@@ -442,6 +553,7 @@ export function Dashboard({
           onAdjustStock={handleAdjustStock}
           onDeleteProduct={handleDeleteProduct}
           onAddProduct={handleAddProduct}
+          onUpdateProduct={handleUpdateProduct}
         />
 
         <RecentMovements movements={localMovements} />

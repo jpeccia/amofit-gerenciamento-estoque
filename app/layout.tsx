@@ -20,6 +20,14 @@ export const metadata: Metadata = {
   title: 'Amo Fit — Estoque e Vendas',
   description: 'Se ame, se mova. Controle de estoque e vendas da Amo Fit.',
   generator: 'v0.app',
+  icons: {
+    icon: [
+      { url: '/logoamofit.jpeg', type: 'image/jpeg' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/logoamofit.jpeg',
+    apple: '/logoamofit.jpeg',
+  },
 }
 
 export const viewport: Viewport = {

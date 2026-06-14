@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -20,49 +20,55 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CATEGORIES, SIZES } from '@/lib/constants'
+import { CATEGORIES, SIZES, type Product } from '@/lib/constants'
 
 /**
- * Dialog component to add a new product to the inventory.
+ * Dialog component to edit properties of an existing product in the stock list.
  *
- * @param props Component properties including open states, reset state handlers, and creation callbacks.
+ * @param props Component properties containing dialog open states, targeted product, and update callback.
  * @returns The rendered React element.
  */
-export function AddProductDialog({
+export function EditProductDialog({
   open,
   onOpenChange,
-  onAddProduct,
+  product,
+  onUpdateProduct,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAddProduct: (product: {
-    name: string
-    category: string
-    size: string
-    quantity: number
-    price: number
-    colors?: string
-  }) => Promise<void>
+  product: Product | null
+  onUpdateProduct: (
+    id: number,
+    input: {
+      name: string
+      category: string
+      size: string
+      price: number
+      colors?: string
+    }
+  ) => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState('')
   const [category, setCategory] = useState<string>(CATEGORIES[0])
   const [size, setSize] = useState<string>('M')
-  const [quantity, setQuantity] = useState('1')
   const [price, setPrice] = useState('')
   const [colors, setColors] = useState('')
 
-  function reset() {
-    setName('')
-    setCategory(CATEGORIES[0])
-    setSize('M')
-    setQuantity('1')
-    setPrice('')
-    setColors('')
-  }
+  useEffect(() => {
+    if (product) {
+      setName(product.name)
+      setCategory(product.category)
+      setSize(product.size)
+      setPrice(Number(product.price).toString().replace('.', ','))
+      setColors(product.colors || '')
+    }
+  }, [product, open])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!product) return
+
     const priceNum = Number(price.replace(',', '.'))
     if (!name.trim()) {
       return toast.error('Informe o nome do produto')
@@ -73,19 +79,17 @@ export function AddProductDialog({
 
     startTransition(async () => {
       try {
-        await onAddProduct({
+        await onUpdateProduct(product.id, {
           name,
           category,
           size,
-          quantity: Number(quantity) || 0,
           price: priceNum,
           colors: colors.trim() || undefined,
         })
-        toast.success('Produto adicionado ao estoque')
-        reset()
+        toast.success('Produto atualizado com sucesso')
         onOpenChange(false)
       } catch {
-        toast.error('Não foi possível adicionar o produto')
+        toast.error('Não foi possível atualizar o produto')
       }
     })
   }
@@ -94,17 +98,17 @@ export function AddProductDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo produto</DialogTitle>
+          <DialogTitle>Editar produto</DialogTitle>
           <DialogDescription>
-            Cadastre uma peça no seu estoque.
+            Altere as informações desta peça no seu estoque.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="product-name">Nome do produto</Label>
+            <Label htmlFor="edit-product-name">Nome do produto</Label>
             <Input
-              id="product-name"
+              id="edit-product-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Legging Power"
@@ -148,34 +152,21 @@ export function AddProductDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="product-qty">Quantidade</Label>
-              <Input
-                id="product-qty"
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="product-price">Preço (R$)</Label>
-              <Input
-                id="product-price"
-                inputMode="decimal"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0,00"
-              />
-            </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="edit-product-price">Preço (R$)</Label>
+            <Input
+              id="edit-product-price"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0,00"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="product-colors">Cores disponíveis</Label>
+            <Label htmlFor="edit-product-colors">Cores disponíveis</Label>
             <Input
-              id="product-colors"
+              id="edit-product-colors"
               value={colors}
               onChange={(e) => setColors(e.target.value)}
               placeholder="Ex: Preto, Azul, Rosa (separadas por vírgula)"
@@ -190,8 +181,8 @@ export function AddProductDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'Salvando...' : 'Adicionar'}
+            <Button type="submit" disabled={isPending} className="cursor-pointer">
+              {isPending ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
         </form>
