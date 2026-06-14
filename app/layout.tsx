@@ -23,7 +23,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/logoamofit.jpeg', type: 'image/jpeg' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
     shortcut: '/logoamofit.jpeg',
     apple: '/logoamofit.jpeg',

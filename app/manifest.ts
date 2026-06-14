@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
 /**
- * Generates the web manifest configuration for the PWA.
+ * Generates the web manifest configuration for the PWA using the brand logo.
  *
  * @returns Next.js manifest metadata object.
  */
@@ -18,16 +18,10 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     icons: [
       {
-        src: '/icon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
+        src: '/logoamofit.jpeg',
+        sizes: '192x192',
+        type: 'image/jpeg',
         purpose: 'any',
-      },
-      {
-        src: '/icon.svg',
-        sizes: '192x192 512x512',
-        type: 'image/svg+xml',
-        purpose: 'maskable',
       },
       {
         src: '/logoamofit.jpeg',
@@ -37,9 +31,9 @@ export default function manifest(): MetadataRoute.Manifest {
       },
       {
         src: '/logoamofit.jpeg',
-        sizes: '192x192',
+        sizes: '192x192 512x512',
         type: 'image/jpeg',
-        purpose: 'any',
+        purpose: 'maskable',
       },
     ],
   }
