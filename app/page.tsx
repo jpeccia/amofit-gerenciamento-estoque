@@ -12,7 +12,7 @@ export default async function HomePage() {
   const [products, summary, movements] = await Promise.all([
     getProducts(),
     getTodaySummary(),
-    getRecentMovements(),
+    getRecentMovements(100),
   ])
 
   return (

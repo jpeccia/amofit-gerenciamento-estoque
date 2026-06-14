@@ -15,7 +15,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AddProductDialog } from '@/components/add-product-dialog'
-import { EditProductDialog } from '@/components/edit-product-dialog'
 import { formatBRL, CATEGORIES, SIZES, type Product } from '@/lib/constants'
 
 /**
@@ -32,7 +31,7 @@ export function StockList({
   onAdjustStock,
   onDeleteProduct,
   onAddProduct,
-  onUpdateProduct,
+  onEditProduct,
 }: {
   products: Product[]
   onAdjustStock: (id: number, delta: number) => Promise<void>
@@ -45,20 +44,9 @@ export function StockList({
     price: number
     colors?: string
   }) => Promise<void>
-  onUpdateProduct: (
-    id: number,
-    input: {
-      name: string
-      category: string
-      size: string
-      price: number
-      colors?: string
-    }
-  ) => Promise<void>
+  onEditProduct: (product: Product) => void
 }) {
   const [addOpen, setAddOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedSize, setSelectedSize] = useState<string>('Todos')
@@ -257,10 +245,7 @@ export function StockList({
               product={product}
               onAdjustStock={onAdjustStock}
               onDeleteProduct={onDeleteProduct}
-              onEditClick={(prod) => {
-                setEditProduct(prod)
-                setEditOpen(true)
-              }}
+              onEditClick={onEditProduct}
             />
           ))}
         </ul>
@@ -270,12 +255,6 @@ export function StockList({
         open={addOpen}
         onOpenChange={setAddOpen}
         onAddProduct={onAddProduct}
-      />
-      <EditProductDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        product={editProduct}
-        onUpdateProduct={onUpdateProduct}
       />
     </section>
   )

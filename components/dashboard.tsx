@@ -8,6 +8,7 @@ import {
   LogOut,
   RefreshCw,
   AlertTriangle,
+  Package,
 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,9 @@ import { RecentMovements } from '@/components/recent-movements'
 import { RecentHistory } from '@/components/recent-history'
 import { SaleDialog } from '@/components/sale-dialog'
 import { ReturnDialog } from '@/components/return-dialog'
+import { SalesHistoryDialog } from '@/components/sales-history-dialog'
+import { ProductsListDialog } from '@/components/products-list-dialog'
+import { EditProductDialog } from '@/components/edit-product-dialog'
 import {
   Dialog,
   DialogContent,
@@ -118,6 +122,10 @@ export function Dashboard({
   const router = useRouter()
   const [saleOpen, setSaleOpen] = useState(false)
   const [returnOpen, setReturnOpen] = useState(false)
+  const [salesHistoryOpen, setSalesHistoryOpen] = useState(false)
+  const [productsListOpen, setProductsListOpen] = useState(false)
+  const [editProduct, setEditProduct] = useState<Product | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -502,12 +510,12 @@ export function Dashboard({
 
         <SummaryHeader userName={userName} summary={localSummary} />
 
-        <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-4">
           <button
             type="button"
             onClick={() => setSaleOpen(true)}
             disabled={localProducts.length === 0}
-            className="group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-brand-purple to-primary p-5 text-left text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+            className="group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-brand-purple to-primary p-5 text-left text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15">
               <ShoppingBag className="h-6 w-6" />
@@ -516,7 +524,7 @@ export function Dashboard({
               <span className="block text-lg font-bold leading-tight">
                 Registrar Venda
               </span>
-              <span className="block text-sm text-primary-foreground/80 font-medium">
+              <span className="block text-sm text-white/80 font-medium">
                 Dá baixa no estoque
               </span>
             </span>
@@ -540,6 +548,42 @@ export function Dashboard({
               </span>
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSalesHistoryOpen(true)}
+            className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-all hover:border-primary/50 hover:bg-muted/40 active:scale-[0.99]"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <ShoppingBag className="h-6 w-6 text-brand-purple" />
+            </span>
+            <span>
+              <span className="block text-lg font-bold leading-tight text-brand-purple">
+                Ver Vendas
+              </span>
+              <span className="block text-sm text-muted-foreground font-medium">
+                Histórico e fiados
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setProductsListOpen(true)}
+            className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-all hover:border-primary/50 hover:bg-muted/40 active:scale-[0.99]"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <Package className="h-6 w-6 text-brand-purple" />
+            </span>
+            <span>
+              <span className="block text-lg font-bold leading-tight text-brand-purple">
+                Ver Produtos
+              </span>
+              <span className="block text-sm text-muted-foreground font-medium">
+                Tabela e estoque
+              </span>
+            </span>
+          </button>
         </section>
 
         <RecentHistory
@@ -553,7 +597,10 @@ export function Dashboard({
           onAdjustStock={handleAdjustStock}
           onDeleteProduct={handleDeleteProduct}
           onAddProduct={handleAddProduct}
-          onUpdateProduct={handleUpdateProduct}
+          onEditProduct={(p) => {
+            setEditProduct(p)
+            setEditOpen(true)
+          }}
         />
 
         <RecentMovements movements={localMovements} />
@@ -588,6 +635,30 @@ export function Dashboard({
         onOpenChange={setReturnOpen}
         products={localProducts}
         onRegisterReturn={handleRegisterReturn}
+      />
+      <SalesHistoryDialog
+        open={salesHistoryOpen}
+        onOpenChange={setSalesHistoryOpen}
+        movements={localMovements}
+        onMarkSaleAsPaid={handleMarkSaleAsPaid}
+        onUndoMovement={handleUndoMovement}
+      />
+      <ProductsListDialog
+        open={productsListOpen}
+        onOpenChange={setProductsListOpen}
+        products={localProducts}
+        onAdjustStock={handleAdjustStock}
+        onDeleteProduct={handleDeleteProduct}
+        onEditProduct={(p) => {
+          setEditProduct(p)
+          setEditOpen(true)
+        }}
+      />
+      <EditProductDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        product={editProduct}
+        onUpdateProduct={handleUpdateProduct}
       />
 
       <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
