@@ -9,7 +9,7 @@ export const CATEGORIES = [
   'Acessório',
 ] as const
 
-export const SIZES = ['PP', 'P', 'M', 'G', 'GG'] as const
+export const SIZES = ['PP', 'P', 'M', 'G', 'GG', 'G1', 'G2', 'G3', 'G4'] as const
 
 export const PAYMENT_METHODS = ['Pix', 'Cartão', 'Dinheiro'] as const
 
