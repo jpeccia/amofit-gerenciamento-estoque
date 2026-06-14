@@ -51,7 +51,7 @@ export function StockList({
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedSize, setSelectedSize] = useState<string>('Todos')
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 5
 
   useEffect(() => {
     setCurrentPage(1)
