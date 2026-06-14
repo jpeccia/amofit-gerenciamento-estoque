@@ -73,6 +73,7 @@ export const products = pgTable('products', {
   quantity: integer('quantity').notNull().default(0),
   price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
   colors: text('colors'),
+  sku: text('sku'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 }, (table) => [
   index('products_user_id_idx').on(table.userId),
@@ -96,6 +97,10 @@ export const sales = pgTable('sales', {
   installments: integer('installments').notNull().default(1),
   paymentStatus: text('paymentStatus').notNull().default('paid'),
   customerName: text('customerName'),
+  sku: text('sku'),
+  amountPaid: numeric('amountPaid', { precision: 10, scale: 2 })
+    .notNull()
+    .default('0.00'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 }, (table) => [
   index('sales_user_id_idx').on(table.userId),

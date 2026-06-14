@@ -51,6 +51,7 @@ export async function createProduct(input: {
   quantity: number
   price: number
   colors?: string
+  sku?: string
 }) {
   const userId = await getUserId()
 
@@ -92,6 +93,7 @@ export async function createProduct(input: {
       quantity: Math.max(0, Math.floor(input.quantity)),
       price: input.price.toFixed(2),
       colors: input.colors ? input.colors.trim() : null,
+      sku: input.sku ? input.sku.trim() : null,
     })
     .returning()
 
@@ -107,6 +109,7 @@ export async function createProduct(input: {
       total: '0.00',
       paymentMethod: '—',
       type: 'restock',
+      sku: newProd.sku || null,
     })
   }
 
@@ -144,6 +147,7 @@ export async function adjustStock(id: number, delta: number) {
         total: '0.00',
         paymentMethod: '—',
         type: 'restock',
+        sku: product.sku || null,
       })
     }
   })
@@ -173,6 +177,7 @@ export async function updateProduct(
     size: string
     price: number
     colors?: string
+    sku?: string
   }
 ) {
   const userId = await getUserId()
@@ -206,8 +211,10 @@ export async function updateProduct(
       size: input.size,
       price: input.price.toFixed(2),
       colors: input.colors ? input.colors.trim() : null,
+      sku: input.sku ? input.sku.trim() : null,
     })
     .where(and(eq(products.id, id), eq(products.userId, userId)))
 
   revalidatePath('/')
 }
+

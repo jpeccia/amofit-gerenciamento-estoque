@@ -43,6 +43,7 @@ export function StockList({
     quantity: number
     price: number
     colors?: string
+    sku?: string
   }) => Promise<void>
   onEditProduct: (product: Product) => void
 }) {
@@ -53,9 +54,13 @@ export function StockList({
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const matchesSearch = product.name
+      const nameMatches = product.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase())
+      const skuMatches = product.sku
+        ? product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+        : false
+      const matchesSearch = nameMatches || skuMatches
       const matchesCategory =
         selectedCategory === 'Todos' || product.category === selectedCategory
       const matchesSize = selectedSize === 'Todos' || product.size === selectedSize
@@ -325,6 +330,14 @@ const ProductCard = memo(function ProductCard({
           )}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          {product.sku && (
+            <>
+              <span className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono font-semibold text-muted-foreground">
+                Ref: {product.sku}
+              </span>
+              <span aria-hidden>•</span>
+            </>
+          )}
           <span>{product.category}</span>
           {product.colors && (
             <>

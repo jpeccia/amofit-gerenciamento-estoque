@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { SummaryHeader } from '@/components/summary-header'
 import { StockList } from '@/components/stock-list'
 import { RecentMovements } from '@/components/recent-movements'
+import { Insights } from '@/components/insights'
 import { RecentHistory } from '@/components/recent-history'
 import { SaleDialog } from '@/components/sale-dialog'
 import { ReturnDialog } from '@/components/return-dialog'
@@ -271,7 +272,16 @@ export function Dashboard({
    * @param customerName Optional name of the customer.
    */
   const handleRegisterSale = async (
-    items: { productId: number; quantity: number; color?: string }[],
+    items: {
+      productId?: number | null
+      quantity: number
+      color?: string
+      name?: string
+      category?: string
+      size?: string
+      price?: number
+      sku?: string
+    }[],
     paymentMethod: string,
     installments?: number,
     paymentStatus?: string,
@@ -296,33 +306,54 @@ export function Dashboard({
     const newMovements: Movement[] = []
 
     for (const item of items) {
-      const targetProduct = updatedProducts.find((p) => p.id === item.productId)
-      if (!targetProduct) {
-        throw new Error('Produto não encontrado')
+      const isCustom = item.productId === null || item.productId === undefined || item.productId <= 0
+      let prodName = item.name || ''
+      let prodCategory = item.category || 'Outros'
+      let prodSize = item.size || 'M'
+      let unitPrice = item.price ? item.price.toFixed(2) : '0.00'
+      let sku = item.sku || null
+
+      if (!isCustom) {
+        const targetProduct = updatedProducts.find((p) => p.id === item.productId)
+        if (!targetProduct) {
+          throw new Error('Produto não encontrado')
+        }
+
+        prodName = targetProduct.name
+        prodCategory = targetProduct.category
+        prodSize = targetProduct.size
+        unitPrice = targetProduct.price
+        sku = targetProduct.sku || null
+
+        updatedProducts = updatedProducts.map((p) => {
+          if (p.id === item.productId) {
+            return { ...p, quantity: Math.max(0, p.quantity - item.quantity) }
+          }
+          return p
+        })
       }
 
-      updatedProducts = updatedProducts.map((p) => {
-        if (p.id === item.productId) {
-          return { ...p, quantity: Math.max(0, p.quantity - item.quantity) }
-        }
-        return p
-      })
+      const totalVal = (Number(unitPrice) * item.quantity).toFixed(2)
+      const initialStatus = paymentStatus || 'paid'
+      const amountPaid = initialStatus === 'paid' ? totalVal : '0.00'
 
       newMovements.push({
         id: Date.now() + Math.random(),
         userId: userName,
-        productId: item.productId,
-        productName: targetProduct.name,
-        category: targetProduct.category,
-        size: targetProduct.size,
+        productId: isCustom ? null : item.productId!,
+        productName: prodName,
+        category: prodCategory,
+        size: prodSize,
         quantity: item.quantity,
-        unitPrice: targetProduct.price,
-        total: (Number(targetProduct.price) * item.quantity).toFixed(2),
+        unitPrice,
+        total: totalVal,
         paymentMethod,
         color: item.color || null,
         installments: installments || 1,
-        paymentStatus: paymentStatus || 'paid',
+        paymentStatus: initialStatus,
         customerName: customerName || null,
+        sku,
+        amountPaid,
         type: 'sale',
         createdAt: new Date(),
       })
@@ -342,12 +373,14 @@ export function Dashboard({
 
   /**
    * Marks a pending sale movement as paid in both the database and client-side storage.
+   * Can accept optional partial amount paid.
    *
    * @param saleId The database ID of the sale to be marked as paid.
+   * @param amount The optional amount received.
    */
-  const handleMarkSaleAsPaid = async (saleId: number) => {
+  const handleMarkSaleAsPaid = async (saleId: number, amount?: number) => {
     try {
-      const response = await markSaleAsPaid(saleId)
+      const response = await markSaleAsPaid(saleId, amount)
       if (response && !response.success && response.error) {
         throw new Error(response.error.message)
       }
@@ -357,7 +390,27 @@ export function Dashboard({
 
     const updatedMovements = localMovements.map((m) => {
       if (m.id === saleId) {
-        return { ...m, paymentStatus: 'paid' }
+        let newAmtPaid = Number(m.amountPaid || '0')
+        let newStatus = 'paid'
+        if (amount !== undefined && amount > 0) {
+          newAmtPaid += amount
+          const totalVal = Number(m.total)
+          if (newAmtPaid < totalVal) {
+            newStatus = 'pending'
+          } else {
+            newAmtPaid = totalVal
+            newStatus = 'paid'
+          }
+        } else {
+          newAmtPaid = Number(m.total)
+          newStatus = 'paid'
+        }
+
+        return {
+          ...m,
+          paymentStatus: newStatus,
+          amountPaid: newAmtPaid.toFixed(2),
+        }
       }
       return m
     })
@@ -604,6 +657,8 @@ export function Dashboard({
         />
 
         <RecentMovements movements={localMovements} />
+
+        <Insights products={localProducts} movements={localMovements} />
 
         <div className="mt-12 flex justify-center">
           <Button

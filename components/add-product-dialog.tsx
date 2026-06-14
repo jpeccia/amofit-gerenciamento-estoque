@@ -42,6 +42,7 @@ export function AddProductDialog({
     quantity: number
     price: number
     colors?: string
+    sku?: string
   }) => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
@@ -51,6 +52,7 @@ export function AddProductDialog({
   const [quantity, setQuantity] = useState('1')
   const [price, setPrice] = useState('')
   const [colors, setColors] = useState('')
+  const [sku, setSku] = useState('')
 
   function reset() {
     setName('')
@@ -59,6 +61,7 @@ export function AddProductDialog({
     setQuantity('1')
     setPrice('')
     setColors('')
+    setSku('')
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -80,6 +83,7 @@ export function AddProductDialog({
           quantity: Number(quantity) || 0,
           price: priceNum,
           colors: colors.trim() || undefined,
+          sku: sku.trim() || undefined,
         })
         toast.success('Produto adicionado ao estoque')
         reset()
@@ -172,14 +176,25 @@ export function AddProductDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="product-colors">Cores disponíveis</Label>
-            <Input
-              id="product-colors"
-              value={colors}
-              onChange={(e) => setColors(e.target.value)}
-              placeholder="Ex: Preto, Azul, Rosa (separadas por vírgula)"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="product-colors">Cores disponíveis</Label>
+              <Input
+                id="product-colors"
+                value={colors}
+                onChange={(e) => setColors(e.target.value)}
+                placeholder="Ex: Preto, Azul"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="product-sku">Referência / SKU</Label>
+              <Input
+                id="product-sku"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="Ex: LEG001"
+              />
+            </div>
           </div>
 
           <DialogFooter className="mt-2">

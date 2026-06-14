@@ -24,7 +24,16 @@ async function getUserId() {
 
 
     export async function registerSale(input: {
-  items: { productId: number; quantity: number; color?: string }[]
+  items: {
+    productId?: number | null
+    quantity: number
+    color?: string
+    name?: string
+    category?: string
+    size?: string
+    price?: number
+    sku?: string
+  }[]
   paymentMethod: string
   installments?: number
   paymentStatus?: string
@@ -91,16 +100,41 @@ async function getUserId() {
   }
 
   for (const item of input.items) {
-    if (typeof item.productId !== 'number' || item.productId <= 0) {
-      return {
-        success: false,
-        error: {
-          error: 'BadRequest',
-          message: 'SALES_REGISTER_400',
-          statusCode: 400,
-        },
+    if (item.productId !== null && item.productId !== undefined && item.productId > 0) {
+      if (typeof item.productId !== 'number') {
+        return {
+          success: false,
+          error: {
+            error: 'BadRequest',
+            message: 'SALES_REGISTER_400',
+            statusCode: 400,
+          },
+        }
+      }
+    } else {
+      // Validate custom item details
+      if (typeof item.name !== 'string' || !item.name.trim()) {
+        return {
+          success: false,
+          error: {
+            error: 'BadRequest',
+            message: 'SALES_REGISTER_400',
+            statusCode: 400,
+          },
+        }
+      }
+      if (typeof item.price !== 'number' || item.price <= 0) {
+        return {
+          success: false,
+          error: {
+            error: 'BadRequest',
+            message: 'SALES_REGISTER_400',
+            statusCode: 400,
+          },
+        }
       }
     }
+
     if (
       typeof item.quantity !== 'number' ||
       item.quantity < 1 ||
@@ -121,50 +155,69 @@ async function getUserId() {
     await db.transaction(async (tx) => {
       for (const item of input.items) {
         const qty = item.quantity
-        const [product] = await tx
-          .select()
-          .from(products)
-          .where(
-            and(eq(products.id, item.productId), eq(products.userId, userId))
-          )
+        const isCustom = item.productId === null || item.productId === undefined || item.productId <= 0
 
-        if (!product) {
-          throw new Error('PRODUCT_NOT_FOUND')
-        }
+        let productName = item.name || ''
+        let category = item.category || 'Outros'
+        let size = item.size || 'M'
+        let unitPrice = item.price || 0
+        let sku = item.sku || null
 
-        const unitPrice = Number(product.price)
-        const total = unitPrice * qty
-
-        const updated = await tx
-          .update(products)
-          .set({ quantity: sql`${products.quantity} - ${qty}` })
-          .where(
-            and(
-              eq(products.id, product.id),
-              eq(products.userId, userId),
-              gte(products.quantity, qty)
+        if (!isCustom) {
+          const [product] = await tx
+            .select()
+            .from(products)
+            .where(
+              and(eq(products.id, item.productId!), eq(products.userId, userId))
             )
-          )
-          .returning()
 
-        if (updated.length === 0) {
-          throw new Error('INSUFFICIENT_STOCK')
+          if (!product) {
+            throw new Error('PRODUCT_NOT_FOUND')
+          }
+
+          productName = product.name
+          category = product.category
+          size = product.size
+          unitPrice = Number(product.price)
+          sku = product.sku || null
+
+          const updated = await tx
+            .update(products)
+            .set({ quantity: sql`${products.quantity} - ${qty}` })
+            .where(
+              and(
+                eq(products.id, product.id),
+                eq(products.userId, userId),
+                gte(products.quantity, qty)
+              )
+            )
+            .returning()
+
+          if (updated.length === 0) {
+            throw new Error('INSUFFICIENT_STOCK')
+          }
         }
+
+        const total = unitPrice * qty
+        const initialStatus = input.paymentStatus || 'paid'
+        const amountPaid = initialStatus === 'paid' ? total : 0
 
         await tx.insert(sales).values({
           userId,
-          productId: product.id,
-          productName: product.name,
-          category: product.category,
-          size: product.size,
+          productId: isCustom ? null : item.productId,
+          productName,
+          category,
+          size,
           quantity: qty,
           unitPrice: unitPrice.toFixed(2),
           total: total.toFixed(2),
           paymentMethod: input.paymentMethod,
           color: item.color || null,
           installments: input.installments || 1,
-          paymentStatus: input.paymentStatus || 'paid',
+          paymentStatus: initialStatus,
           customerName: input.customerName || null,
+          sku,
+          amountPaid: amountPaid.toFixed(2),
           type: 'sale',
         })
       }
@@ -593,7 +646,7 @@ export async function clearTodaySales() {
  * @param saleId The database ID of the sale to mark as paid.
  * @returns A promise resolving to a success indicator or standard API error response.
  */
-export async function markSaleAsPaid(saleId: number): Promise<{
+export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
   success: boolean
   error?: {
     error: string
@@ -633,9 +686,46 @@ export async function markSaleAsPaid(saleId: number): Promise<{
   }
 
   try {
+    // Fetch current sale to calculate partial amortization
+    const [sale] = await db
+      .select()
+      .from(sales)
+      .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
+
+    if (!sale) {
+      return {
+        success: false,
+        error: {
+          error: 'NotFound',
+          message: 'SALES_UPDATE_404',
+          statusCode: 404,
+        },
+      }
+    }
+
+    let newAmountPaid: number
+    let newStatus = 'paid'
+
+    if (amount !== undefined && amount > 0) {
+      newAmountPaid = Number(sale.amountPaid || '0') + amount
+      const totalVal = Number(sale.total)
+      if (newAmountPaid < totalVal) {
+        newStatus = 'pending'
+      } else {
+        newAmountPaid = totalVal // Cap at total
+        newStatus = 'paid'
+      }
+    } else {
+      newAmountPaid = Number(sale.total)
+      newStatus = 'paid'
+    }
+
     const updated = await db
       .update(sales)
-      .set({ paymentStatus: 'paid' })
+      .set({
+        paymentStatus: newStatus,
+        amountPaid: newAmountPaid.toFixed(2),
+      })
       .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
       .returning()
 

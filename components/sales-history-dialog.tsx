@@ -54,7 +54,7 @@ export function SalesHistoryDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   movements: Movement[]
-  onMarkSaleAsPaid: (id: number) => Promise<void>
+  onMarkSaleAsPaid: (id: number, amount?: number) => Promise<void>
   onUndoMovement: (id: number) => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
@@ -86,11 +86,28 @@ export function SalesHistoryDialog({
     })
   }, [salesOnly, search, statusFilter, methodFilter])
 
-  function handleReceive(id: number, name: string) {
+  function handleReceive(id: number, name: string, total: number, amountPaid: number) {
+    const remaining = total - amountPaid
+    const input = window.prompt(
+      `Registrar recebimento de ${name || 'Cliente'}:\n\n` +
+      `Valor total: ${formatBRL(total)}\n` +
+      `Já amortizado: ${formatBRL(amountPaid)}\n` +
+      `Restante: ${formatBRL(remaining)}\n\n` +
+      `Digite o valor pago agora:`,
+      remaining.toFixed(2)
+    )
+
+    if (input === null) return
+
+    const receivedAmt = Number(input.replace(',', '.'))
+    if (Number.isNaN(receivedAmt) || receivedAmt <= 0) {
+      return toast.error('Valor informado inválido')
+    }
+
     startTransition(async () => {
       try {
-        await onMarkSaleAsPaid(id)
-        toast.success(`Pagamento de ${name} recebido!`)
+        await onMarkSaleAsPaid(id, receivedAmt)
+        toast.success(`Recebimento registrado!`)
       } catch {
         toast.error('Erro ao marcar venda como paga')
       }
@@ -112,12 +129,14 @@ export function SalesHistoryDialog({
     const headers = [
       'Data',
       'Cliente',
+      'Referência / SKU',
       'Produto',
       'Tamanho',
       'Cor',
       'Quantidade',
       'Valor Unitário (R$)',
       'Total (R$)',
+      'Valor Pago (R$)',
       'Método de Pagamento',
       'Parcelas',
       'Status de Pagamento'
@@ -126,12 +145,14 @@ export function SalesHistoryDialog({
     const rows = filteredSales.map((m) => [
       formatTime(m.createdAt),
       m.customerName || '—',
+      m.sku || '—',
       m.productName,
       m.size,
       m.color || '—',
       m.quantity,
       Number(m.unitPrice).toFixed(2),
       Number(m.total).toFixed(2),
+      Number(m.amountPaid || m.total).toFixed(2),
       m.paymentMethod,
       m.installments || 1,
       m.paymentStatus === 'pending' ? 'Pendente' : 'Pago'
@@ -184,7 +205,7 @@ export function SalesHistoryDialog({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por cliente ou produto..."
+              placeholder="Buscar por cliente, produto ou SKU..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -196,39 +217,31 @@ export function SalesHistoryDialog({
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Status
               </span>
-              <Select
+              <select
                 value={statusFilter}
-                onValueChange={(val) => setStatusFilter((val ?? 'all') as any)}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="paid">Pago</SelectItem>
-                  <SelectItem value="pending">Pendente (Fiado)</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="all">Todos os Status</option>
+                <option value="paid">Pago</option>
+                <option value="pending">Pendente (Fiado)</option>
+              </select>
             </div>
 
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Método
               </span>
-              <Select
+              <select
                 value={methodFilter}
-                onValueChange={(val) => setMethodFilter(val ?? 'all')}
+                onChange={(e) => setMethodFilter(e.target.value)}
+                className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Métodos</SelectItem>
-                  <SelectItem value="Pix">Pix</SelectItem>
-                  <SelectItem value="Cartão">Cartão</SelectItem>
-                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="all">Todos os Métodos</option>
+                <option value="Pix">Pix</option>
+                <option value="Cartão">Cartão</option>
+                <option value="Dinheiro">Dinheiro</option>
+              </select>
             </div>
           </div>
         </div>
@@ -257,6 +270,8 @@ export function SalesHistoryDialog({
               ) : (
                 filteredSales.map((m) => {
                   const isPendingPayment = m.paymentStatus === 'pending'
+                  const totalNum = Number(m.total)
+                  const paidNum = Number(m.amountPaid || 0)
                   return (
                     <tr key={m.id} className="hover:bg-muted/15 transition-colors">
                       <td className="py-3 px-4 text-xs text-muted-foreground truncate">
@@ -266,23 +281,31 @@ export function SalesHistoryDialog({
                         {m.customerName || '—'}
                       </td>
                       <td className="py-3 px-4 truncate">
-                        <span className="font-medium text-foreground">{m.productName}</span>
-                        {m.color && (
-                          <span className="ml-1 text-[10px] text-muted-foreground">
-                            ({m.color})
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">{m.productName}</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            {m.color && `Cor: ${m.color}`}
+                            {m.sku && ` · Ref: ${m.sku}`}
+                            {` · Qtd: ${m.quantity}`}
                           </span>
-                        )}
-                        <span className="ml-1 text-xs text-muted-foreground font-semibold">
-                          x{m.quantity}
-                        </span>
+                        </div>
                       </td>
                       <td className="py-3 px-2 text-center">
                         <Badge variant="outline" className="font-bold">
                           {m.size}
                         </Badge>
                       </td>
-                      <td className="py-3 px-3 font-bold text-foreground">
-                        {formatBRL(Number(m.total))}
+                      <td className="py-3 px-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-foreground">
+                            {formatBRL(totalNum)}
+                          </span>
+                          {isPendingPayment && paidNum > 0 && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                              Pago: {formatBRL(paidNum)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-3 text-xs text-muted-foreground truncate">
                         {m.paymentMethod}
@@ -311,7 +334,7 @@ export function SalesHistoryDialog({
                             <Button
                               size="sm"
                               disabled={isPending}
-                              onClick={() => handleReceive(m.id, m.customerName || m.productName)}
+                              onClick={() => handleReceive(m.id, m.customerName || m.productName, totalNum, paidNum)}
                               className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0"
                             >
                               Receber

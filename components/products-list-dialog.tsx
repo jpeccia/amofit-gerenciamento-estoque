@@ -85,6 +85,7 @@ export function ProductsListDialog({
 
   function handleExportCSV() {
     const headers = [
+      'Referência / SKU',
       'Nome do Produto',
       'Categoria',
       'Tamanho',
@@ -95,6 +96,7 @@ export function ProductsListDialog({
     ]
 
     const rows = filteredProducts.map((p) => [
+      p.sku || '—',
       p.name,
       p.category,
       p.size,
@@ -151,7 +153,7 @@ export function ProductsListDialog({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome do produto..."
+              placeholder="Buscar por nome ou SKU do produto..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -163,44 +165,36 @@ export function ProductsListDialog({
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Categoria
               </span>
-              <Select
+              <select
                 value={categoryFilter}
-                onValueChange={(val) => setCategoryFilter(val ?? 'all')}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Categorias</SelectItem>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="all">Todas as Categorias</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Tamanho
               </span>
-              <Select
+              <select
                 value={sizeFilter}
-                onValueChange={(val) => setSizeFilter(val ?? 'all')}
+                onChange={(e) => setSizeFilter(e.target.value)}
+                className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Tamanhos</SelectItem>
-                  {SIZES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="all">Todos os Tamanhos</option>
+                {SIZES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -231,7 +225,14 @@ export function ProductsListDialog({
                   return (
                     <tr key={p.id} className="hover:bg-muted/15 transition-colors">
                       <td className="py-3.5 px-4 font-semibold text-foreground truncate">
-                        {p.name}
+                        <div className="flex flex-col">
+                          <span>{p.name}</span>
+                          {p.sku && (
+                            <span className="text-[10px] text-muted-foreground font-mono font-normal">
+                              Ref: {p.sku}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-2 text-muted-foreground text-xs truncate">
                         {p.category}

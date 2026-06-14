@@ -22,6 +22,7 @@ export type Product = {
   quantity: number
   price: string
   colors?: string | null
+  sku?: string | null
   createdAt: Date
 }
 
@@ -41,6 +42,8 @@ export type Movement = {
   installments?: number | null
   paymentStatus?: string | null
   customerName?: string | null
+  sku?: string | null
+  amountPaid?: string | null
   createdAt: Date
 }
 
