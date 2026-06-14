@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo, memo } from 'react'
+import { useState, useTransition, useMemo, useEffect, memo } from 'react'
 import {
   Minus,
   Plus,
@@ -19,9 +19,8 @@ import { formatBRL, CATEGORIES, SIZES, type Product } from '@/lib/constants'
 
 /**
  * Renders the product stock list with search inputs, category/size filter chips,
- * and handles empty state and product addition dialog.
- * Incorporates brand styles: deep purple headers, turquoise filter chips,
- * total capital value, and a WhatsApp restock share utility.
+ * pagination controls (10 items per page), and product addition dialog.
+ * Incorporates brand styles: deep purple headers, turquoise filter chips.
  *
  * @param props The component properties containing products list and state callbacks.
  * @returns The rendered React element.
@@ -51,6 +50,12 @@ export function StockList({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedSize, setSelectedSize] = useState<string>('Todos')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, selectedSize])
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -68,6 +73,13 @@ export function StockList({
     })
   }, [products, searchQuery, selectedCategory, selectedSize])
 
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredProducts.slice(start, start + itemsPerPage)
+  }, [filteredProducts, currentPage])
+
   const totalStockValue = useMemo(() => {
     return products.reduce(
       (acc, p) => acc + Number(p.price) * p.quantity,
@@ -79,6 +91,7 @@ export function StockList({
     setSearchQuery('')
     setSelectedCategory('Todos')
     setSelectedSize('Todos')
+    setCurrentPage(1)
   }
 
   function handleShareWhatsApp() {
@@ -243,17 +256,47 @@ export function StockList({
           </Button>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-3">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onAdjustStock={onAdjustStock}
-              onDeleteProduct={onDeleteProduct}
-              onEditClick={onEditProduct}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="grid grid-cols-1 gap-3">
+            {paginatedProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAdjustStock={onAdjustStock}
+                onDeleteProduct={onDeleteProduct}
+                onEditClick={onEditProduct}
+              />
+            ))}
+          </ul>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-border/60 pt-4 mt-4">
+              <p className="text-xs text-muted-foreground font-semibold">
+                Página {currentPage} de {totalPages}
+              </p>
+              <div className="flex gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  className="h-8 text-xs font-bold rounded-lg border-border"
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  className="h-8 text-xs font-bold rounded-lg border-border"
+                >
+                  Próximo
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <AddProductDialog

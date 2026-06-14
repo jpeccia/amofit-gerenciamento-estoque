@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useEffect, useTransition } from 'react'
 import { Search, Plus, Minus, Pencil, Trash2, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -13,17 +13,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { formatBRL, CATEGORIES, SIZES, type Product } from '@/lib/constants'
 
 /**
- * Dialog component displaying a complete tabular representation of products in stock.
+ * Dialog component displaying a complete tabular representation of products in stock with pagination.
  * Allows quick inline adjustments, edits, deletion, and CSV exports.
  *
  * @param props Component properties containing products, dialog toggles, and callbacks.
@@ -48,6 +41,12 @@ export function ProductsListDialog({
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [sizeFilter, setSizeFilter] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, categoryFilter, sizeFilter])
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -60,6 +59,13 @@ export function ProductsListDialog({
       return matchesSearch && matchesCategory && matchesSize
     })
   }, [products, search, categoryFilter, sizeFilter])
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredProducts.slice(start, start + itemsPerPage)
+  }, [filteredProducts, currentPage])
 
   function handleAdjust(id: number, delta: number, name: string) {
     startTransition(async () => {
@@ -220,7 +226,7 @@ export function ProductsListDialog({
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((p) => {
+                paginatedProducts.map((p) => {
                   const isLow = p.quantity < 3
                   return (
                     <tr key={p.id} className="hover:bg-muted/15 transition-colors">
@@ -308,6 +314,34 @@ export function ProductsListDialog({
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border/65 pt-3 shrink-0">
+            <p className="text-xs text-muted-foreground font-semibold">
+              Página {currentPage} de {totalPages}
+            </p>
+            <div className="flex gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                className="h-8 text-xs font-bold rounded-lg border-border"
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                className="h-8 text-xs font-bold rounded-lg border-border"
+              >
+                Próximo
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

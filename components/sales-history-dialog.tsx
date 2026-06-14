@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useEffect, useTransition } from 'react'
 import { Search, RotateCcw, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -13,13 +13,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { formatBRL, type Movement } from '@/lib/constants'
 
 /**
@@ -38,7 +31,7 @@ function formatTime(date: Date): string {
 }
 
 /**
- * Dialog component displaying a complete tabular representation of sales.
+ * Dialog component displaying a complete tabular representation of sales with pagination.
  * Allows filtering, searching, exporting to CSV, and quick collection of pending payments.
  *
  * @param props Component properties including dialog state, sales history, and actions.
@@ -61,6 +54,12 @@ export function SalesHistoryDialog({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all')
   const [methodFilter, setMethodFilter] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, statusFilter, methodFilter])
 
   const salesOnly = useMemo(() => {
     return movements.filter((m) => m.type === 'sale')
@@ -75,16 +74,21 @@ export function SalesHistoryDialog({
         ? m.customerName.toLowerCase().includes(search.toLowerCase())
         : false
       const matchesSearch = productNameMatches || customerNameMatches || !search.trim()
-
       const matchesStatus =
         statusFilter === 'all' || m.paymentStatus === statusFilter
-
       const matchesMethod =
         methodFilter === 'all' || m.paymentMethod === methodFilter
 
       return matchesSearch && matchesStatus && matchesMethod
     })
   }, [salesOnly, search, statusFilter, methodFilter])
+
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage)
+
+  const paginatedSales = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredSales.slice(start, start + itemsPerPage)
+  }, [filteredSales, currentPage])
 
   function handleReceive(id: number, name: string, total: number, amountPaid: number) {
     const remaining = total - amountPaid
@@ -247,17 +251,17 @@ export function SalesHistoryDialog({
         </div>
 
         <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 rounded-xl border border-border bg-card">
-          <table className="w-full text-left border-collapse min-w-[700px] table-fixed">
+          <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider font-bold">
-                <th className="py-3 px-4 w-[16%]">Data</th>
-                <th className="py-3 px-3 w-[18%]">Cliente</th>
-                <th className="py-3 px-4 w-[32%]">Produto</th>
-                <th className="py-3 px-2 w-[10%] text-center">Tam</th>
-                <th className="py-3 px-3 w-[14%]">Total</th>
-                <th className="py-3 px-3 w-[15%]">Método</th>
-                <th className="py-3 px-3 w-[14%] text-center">Status</th>
-                <th className="py-3 px-4 w-[15%] text-right">Ações</th>
+                <th className="py-3 px-4 w-[12%]">Data</th>
+                <th className="py-3 px-3 w-[14%]">Cliente</th>
+                <th className="py-3 px-4 w-[24%]">Produto</th>
+                <th className="py-3 px-2 w-[6%] text-center">Tam</th>
+                <th className="py-3 px-3 w-[13%]">Total</th>
+                <th className="py-3 px-3 w-[11%]">Método</th>
+                <th className="py-3 px-3 w-[11%] text-center">Status</th>
+                <th className="py-3 px-4 w-[17%] text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-sm">
@@ -268,7 +272,7 @@ export function SalesHistoryDialog({
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((m) => {
+                paginatedSales.map((m) => {
                   const isPendingPayment = m.paymentStatus === 'pending'
                   const totalNum = Number(m.total)
                   const paidNum = Number(m.amountPaid || 0)
@@ -359,6 +363,34 @@ export function SalesHistoryDialog({
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border/65 pt-3 shrink-0">
+            <p className="text-xs text-muted-foreground font-semibold">
+              Página {currentPage} de {totalPages}
+            </p>
+            <div className="flex gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                className="h-8 text-xs font-bold rounded-lg border-border"
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                className="h-8 text-xs font-bold rounded-lg border-border"
+              >
+                Próximo
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
