@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingBag,
@@ -71,6 +71,77 @@ export function Dashboard({
   const [editOpen, setEditOpen] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  const computedSummary = useMemo(() => {
+    const today = new Date()
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    ).getTime()
+
+    console.log('computedSummary starts:', {
+      today: today.toString(),
+      startOfDay: new Date(startOfDay).toString(),
+      movementsCount: movements.length,
+    })
+
+    const todayMovements = movements.filter((m) => {
+      const mDate = new Date(m.createdAt)
+      const time = mDate.getTime()
+      const match = time >= startOfDay
+      console.log('Comparing movement date:', {
+        productName: m.productName,
+        createdAt: m.createdAt,
+        parsedDate: mDate.toString(),
+        time,
+        startOfDay,
+        match,
+      })
+      return match
+    })
+
+    console.log('todayMovements filtered:', todayMovements)
+
+    const countSales = todayMovements.filter((m) => m.type === 'sale').length
+    const countReturns = todayMovements.filter((m) => m.type === 'return').length
+
+    let totalSales = 0
+    let itemsSold = 0
+    let totalPending = 0
+    const paymentBreakdown = {
+      Pix: 0,
+      'Cartão': 0,
+      Dinheiro: 0,
+    }
+
+    for (const m of todayMovements) {
+      if (m.type === 'sale') {
+        const val = Number(m.total)
+        totalSales += val
+        itemsSold += m.quantity
+        if (m.paymentStatus === 'pending') {
+          totalPending += val
+        }
+        if (m.paymentMethod === 'Pix') {
+          paymentBreakdown.Pix += val
+        } else if (m.paymentMethod === 'Cartão') {
+          paymentBreakdown['Cartão'] += val
+        } else if (m.paymentMethod === 'Dinheiro') {
+          paymentBreakdown.Dinheiro += val
+        }
+      }
+    }
+
+    return {
+      totalSales,
+      countSales,
+      countReturns,
+      itemsSold,
+      totalPending,
+      paymentBreakdown,
+    }
+  }, [movements])
 
   async function handleSignOut() {
     await authClient.signOut()
@@ -266,7 +337,7 @@ export function Dashboard({
           </Button>
         </header>
 
-        <SummaryHeader userName={userName} summary={summary} />
+        <SummaryHeader userName={userName} summary={computedSummary} />
 
         <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-4">
           <button
