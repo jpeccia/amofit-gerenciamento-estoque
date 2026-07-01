@@ -782,3 +782,214 @@ export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
   }
 }
 
+/**
+ * Updates an existing sale's fields (quantity, customer, price, payment details)
+ * and adjusts the product stock accordingly.
+ *
+ * @param saleId The database ID of the sale to update.
+ * @param input The updated fields.
+ * @returns A promise resolving to a success indicator or standard API error response.
+ */
+export async function updateSale(
+  saleId: number,
+  input: {
+    customerName?: string | null
+    quantity: number
+    unitPrice: number
+    color?: string | null
+    paymentMethod: string
+    paymentStatus: string
+    installments?: number
+    amountPaid?: number
+  }
+): Promise<{
+  success: boolean
+  error?: {
+    error: string
+    message: string
+    statusCode: number
+  }
+}> {
+  let userId: string
+  try {
+    userId = await getUserId()
+  } catch (err) {
+    const internalLog = {
+      type: 'https://errors.amofit.com.br/unauthorized',
+      title: 'Unauthorized Access',
+      detail: 'Authentication required to update sale',
+      instance: `/app/actions/sales/updateSale?id=${saleId}`,
+      trace_id: Math.random().toString(36).substring(2, 15),
+      stack_trace: err instanceof Error ? err.stack : undefined,
+    }
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        service_name: 'sales-service',
+        message: 'Authentication failure in updateSale',
+        trace_id: internalLog.trace_id,
+        error_details: internalLog,
+      })
+    )
+    return {
+      success: false,
+      error: {
+        error: 'Unauthorized',
+        message: 'AUTH_005',
+        statusCode: 401,
+      },
+    }
+  }
+
+  if (
+    typeof input.quantity !== 'number' ||
+    input.quantity < 1 ||
+    !Number.isInteger(input.quantity)
+  ) {
+    return {
+      success: false,
+      error: {
+        error: 'BadRequest',
+        message: 'SALES_UPDATE_400',
+        statusCode: 400,
+      },
+    }
+  }
+
+  if (typeof input.unitPrice !== 'number' || input.unitPrice < 0) {
+    return {
+      success: false,
+      error: {
+        error: 'BadRequest',
+        message: 'SALES_UPDATE_400',
+        statusCode: 400,
+      },
+    }
+  }
+
+  if (!PAYMENT_METHODS.includes(input.paymentMethod as any)) {
+    return {
+      success: false,
+      error: {
+        error: 'BadRequest',
+        message: 'SALES_UPDATE_400',
+        statusCode: 400,
+      },
+    }
+  }
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [sale] = await tx
+        .select()
+        .from(sales)
+        .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
+
+      if (!sale) {
+        throw new Error('SALE_NOT_FOUND')
+      }
+
+      if (sale.type !== 'sale') {
+        throw new Error('NOT_A_SALE')
+      }
+
+      // Adjust product stock if there is a productId
+      if (sale.productId) {
+        const [product] = await tx
+          .select()
+          .from(products)
+          .where(and(eq(products.id, sale.productId), eq(products.userId, userId)))
+
+        if (product) {
+          const qtyDiff = input.quantity - sale.quantity
+          if (qtyDiff !== 0) {
+            const newQty = product.quantity - qtyDiff
+            if (newQty < 0) {
+              throw new Error('INSUFFICIENT_STOCK')
+            }
+            await tx
+              .update(products)
+              .set({ quantity: newQty })
+              .where(eq(products.id, product.id))
+          }
+        }
+      }
+
+      const total = input.unitPrice * input.quantity
+      const initialStatus = input.paymentStatus || 'paid'
+      let amountPaid = 0
+
+      if (initialStatus === 'paid') {
+        amountPaid = total
+      } else if (input.amountPaid !== undefined) {
+        amountPaid = Math.min(total, Math.max(0, input.amountPaid))
+      }
+
+      await tx
+        .update(sales)
+        .set({
+          customerName: input.customerName || null,
+          quantity: input.quantity,
+          unitPrice: input.unitPrice.toFixed(2),
+          total: total.toFixed(2),
+          paymentMethod: input.paymentMethod,
+          color: input.color || null,
+          installments: input.installments || 1,
+          paymentStatus: initialStatus,
+          amountPaid: amountPaid.toFixed(2),
+        })
+        .where(eq(sales.id, saleId))
+
+      return { success: true }
+    })
+
+    revalidatePath('/')
+    return result
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : ''
+    const isNotFound = errorMsg === 'SALE_NOT_FOUND'
+    const isInsufficient = errorMsg === 'INSUFFICIENT_STOCK'
+
+    const errorStatus = isNotFound
+      ? 'NotFound'
+      : isInsufficient
+      ? 'Conflict'
+      : 'InternalServerError'
+    const errorCode = isNotFound
+      ? 'SALES_UPDATE_404'
+      : isInsufficient
+      ? 'SALES_UPDATE_409'
+      : 'SALES_UPDATE_500'
+    const statusCode = isNotFound ? 404 : isInsufficient ? 409 : 500
+
+    const internalLog = {
+      type: `https://errors.amofit.com.br/${errorStatus.toLowerCase()}`,
+      title: 'Sales Update Error',
+      detail: `Failed to update sale: ${errorMsg}`,
+      instance: `/app/actions/sales/updateSale?id=${saleId}`,
+      trace_id: Math.random().toString(36).substring(2, 15),
+      stack_trace: err instanceof Error ? err.stack : undefined,
+    }
+
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        service_name: 'sales-service',
+        message: 'Database transaction failed in updateSale',
+        trace_id: internalLog.trace_id,
+        error_details: internalLog,
+      })
+    )
+
+    return {
+      success: false,
+      error: {
+        error: errorStatus,
+        message: errorCode,
+        statusCode,
+      },
+    }
+  }
+}
+
+

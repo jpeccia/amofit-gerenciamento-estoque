@@ -22,6 +22,7 @@ import { ReturnDialog } from '@/components/return-dialog'
 import { SalesHistoryDialog } from '@/components/sales-history-dialog'
 import { ProductsListDialog } from '@/components/products-list-dialog'
 import { EditProductDialog } from '@/components/edit-product-dialog'
+import { EditSaleDialog } from '@/components/edit-sale-dialog'
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ import {
   undoMovement,
   clearTodaySales,
   markSaleAsPaid,
+  updateSale,
 } from '@/app/actions/sales'
 import { createProduct, adjustStock, deleteProduct, updateProduct } from '@/app/actions/products'
 import type { Movement, Product, Summary } from '@/lib/constants'
@@ -69,6 +71,8 @@ export function Dashboard({
   const [productsListOpen, setProductsListOpen] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [editSale, setEditSale] = useState<Movement | null>(null)
+  const [editSaleOpen, setEditSaleOpen] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -224,6 +228,31 @@ export function Dashboard({
       router.refresh()
     } catch (err) {
       console.error('Failed to undo movement:', err)
+      throw err
+    }
+  }
+
+  const handleUpdateSale = async (
+    saleId: number,
+    input: {
+      customerName?: string | null
+      quantity: number
+      unitPrice: number
+      color?: string | null
+      paymentMethod: string
+      paymentStatus: string
+      installments?: number
+      amountPaid?: number
+    }
+  ) => {
+    try {
+      const response = await updateSale(saleId, input)
+      if (response && !response.success && response.error) {
+        throw new Error(response.error.message)
+      }
+      router.refresh()
+    } catch (err) {
+      console.error('Failed to update sale:', err)
       throw err
     }
   }
@@ -403,6 +432,10 @@ export function Dashboard({
         movements={movements}
         onMarkSaleAsPaid={handleMarkSaleAsPaid}
         onUndoMovement={handleUndoMovement}
+        onEditSale={(sale) => {
+          setEditSale(sale)
+          setEditSaleOpen(true)
+        }}
       />
       <ProductsListDialog
         open={productsListOpen}
@@ -420,6 +453,13 @@ export function Dashboard({
         onOpenChange={setEditOpen}
         product={editProduct}
         onUpdateProduct={handleUpdateProduct}
+      />
+      <EditSaleDialog
+        open={editSaleOpen}
+        onOpenChange={setEditSaleOpen}
+        sale={editSale}
+        products={products}
+        onUpdateSale={handleUpdateSale}
       />
 
       <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>

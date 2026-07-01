@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useTransition } from 'react'
-import { Search, RotateCcw, Download } from 'lucide-react'
+import { Search, RotateCcw, Download, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -43,12 +43,14 @@ export function SalesHistoryDialog({
   movements,
   onMarkSaleAsPaid,
   onUndoMovement,
+  onEditSale,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   movements: Movement[]
   onMarkSaleAsPaid: (id: number, amount?: number) => Promise<void>
   onUndoMovement: (id: number) => Promise<void>
+  onEditSale: (sale: Movement) => void
 }) {
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
@@ -344,6 +346,16 @@ export function SalesHistoryDialog({
                               Receber
                             </Button>
                           )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={isPending}
+                            onClick={() => onEditSale(m)}
+                            className="h-8 w-8 text-muted-foreground hover:text-brand-purple hover:bg-brand-purple/10 rounded-lg shrink-0"
+                            aria-label="Editar"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
