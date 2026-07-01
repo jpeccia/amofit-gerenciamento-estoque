@@ -333,39 +333,40 @@ export function EditSaleDialog({
             </div>
           </div>
 
-          {/* CONDITIONAL PENDING DETS */}
-          {(isPendingPayment || paymentMethod === 'Cartão') && (
-            <div className="grid grid-cols-3 gap-3 p-3 rounded-xl border border-border/80 bg-muted/10">
-              <div className="col-span-2 flex flex-col gap-1.5">
-                <Label htmlFor="edit-customer-name">Nome do Cliente *</Label>
-                <Input
-                  id="edit-customer-name"
-                  type="text"
-                  placeholder="Nome do comprador"
-                  className="h-9 text-xs"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
-              </div>
+          {/* CLIENT NAME - ALWAYS VISIBLE */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="edit-customer-name">
+              Nome do Cliente {isPendingPayment ? '*' : '(Opcional)'}
+            </Label>
+            <Input
+              id="edit-customer-name"
+              type="text"
+              placeholder="Nome do comprador"
+              className="h-9 text-xs"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+            />
+          </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="edit-installments">Parcelas</Label>
-                <Select
-                  value={String(installments)}
-                  onValueChange={(v) => setInstallments(Number(v) || 1)}
-                >
-                  <SelectTrigger id="edit-installments" className="h-9 text-xs bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((num) => (
-                      <SelectItem key={num} value={String(num)}>
-                        {num}x
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* CONDITIONAL INSTALLMENTS */}
+          {(isPendingPayment || paymentMethod === 'Cartão') && (
+            <div className="flex flex-col gap-2 p-3 rounded-xl border border-border/80 bg-muted/10">
+              <Label htmlFor="edit-installments">Parcelas</Label>
+              <Select
+                value={String(installments)}
+                onValueChange={(v) => setInstallments(Number(v) || 1)}
+              >
+                <SelectTrigger id="edit-installments" className="h-9 text-xs bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((num) => (
+                    <SelectItem key={num} value={String(num)}>
+                      {num}x
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
