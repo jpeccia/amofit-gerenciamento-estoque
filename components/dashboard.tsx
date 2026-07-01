@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingBag,
@@ -41,65 +41,7 @@ import {
 import { createProduct, adjustStock, deleteProduct, updateProduct } from '@/app/actions/products'
 import type { Movement, Product, Summary } from '@/lib/constants'
 
-/**
- * Recalculates today's summary metrics using the list of movements.
- *
- * @param movementsList The list of all movements.
- * @returns The recalculated Summary object.
- */
-function recalculateSummary(movementsList: Movement[]): Summary {
-  const today = new Date()
-  const startOfDay = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  ).getTime()
-  const endOfDay = startOfDay + 24 * 60 * 60 * 1000
 
-  const todayMovements = movementsList.filter((m) => {
-    const time = new Date(m.createdAt).getTime()
-    return time >= startOfDay && time < endOfDay
-  })
-
-  const countSales = todayMovements.filter((m) => m.type === 'sale').length
-  const countReturns = todayMovements.filter((m) => m.type === 'return').length
-
-  let totalSales = 0
-  let itemsSold = 0
-  let totalPending = 0
-  const paymentBreakdown = {
-    Pix: 0,
-    'Cartão': 0,
-    Dinheiro: 0,
-  }
-
-  for (const m of todayMovements) {
-    if (m.type === 'sale') {
-      const val = Number(m.total)
-      totalSales += val
-      itemsSold += m.quantity
-      if (m.paymentStatus === 'pending') {
-        totalPending += val
-      }
-      if (m.paymentMethod === 'Pix') {
-        paymentBreakdown.Pix += val
-      } else if (m.paymentMethod === 'Cartão') {
-        paymentBreakdown['Cartão'] += val
-      } else if (m.paymentMethod === 'Dinheiro') {
-        paymentBreakdown.Dinheiro += val
-      }
-    }
-  }
-
-  return {
-    totalSales,
-    countSales,
-    countReturns,
-    itemsSold,
-    totalPending,
-    paymentBreakdown,
-  }
-}
 
 /**
  * Main dashboard component rendering summary headers, quick actions,
@@ -130,25 +72,6 @@ export function Dashboard({
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const [localProducts, setLocalProducts] = useState<Product[]>(products)
-  const [localMovements, setLocalMovements] = useState<Movement[]>(movements)
-  const [localSummary, setLocalSummary] = useState<Summary>(summary)
-
-  useEffect(() => {
-    setLocalProducts(products)
-    localStorage.setItem('amofit_products', JSON.stringify(products))
-  }, [products])
-
-  useEffect(() => {
-    setLocalMovements(movements)
-    localStorage.setItem('amofit_movements', JSON.stringify(movements))
-  }, [movements])
-
-  useEffect(() => {
-    setLocalSummary(summary)
-    localStorage.setItem('amofit_summary', JSON.stringify(summary))
-  }, [summary])
-
   async function handleSignOut() {
     await authClient.signOut()
     router.push('/sign-in')
@@ -165,58 +88,31 @@ export function Dashboard({
   }) => {
     try {
       await createProduct(input)
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to create product:', err)
+      throw err
     }
-
-    const mockProduct: Product = {
-      id: Date.now(),
-      userId: userName,
-      name: input.name.trim(),
-      category: input.category,
-      size: input.size,
-      quantity: Math.max(0, Math.floor(input.quantity)),
-      price: input.price.toFixed(2),
-      colors: input.colors || null,
-      createdAt: new Date(),
-    }
-
-    const updated = [...localProducts, mockProduct].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    )
-
-    setLocalProducts(updated)
-    localStorage.setItem('amofit_products', JSON.stringify(updated))
   }
 
   const handleAdjustStock = async (id: number, delta: number) => {
     try {
       await adjustStock(id, delta)
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to adjust stock:', err)
+      throw err
     }
-
-    const updated = localProducts.map((p) => {
-      if (p.id === id) {
-        return { ...p, quantity: Math.max(0, p.quantity + delta) }
-      }
-      return p
-    })
-
-    setLocalProducts(updated)
-    localStorage.setItem('amofit_products', JSON.stringify(updated))
   }
 
   const handleDeleteProduct = async (id: number) => {
     try {
       await deleteProduct(id)
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to delete product:', err)
+      throw err
     }
-
-    const updated = localProducts.filter((p) => p.id !== id)
-    setLocalProducts(updated)
-    localStorage.setItem('amofit_products', JSON.stringify(updated))
   }
 
   /**
@@ -237,28 +133,11 @@ export function Dashboard({
   ) => {
     try {
       await updateProduct(id, input)
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to update product:', err)
+      throw err
     }
-
-    const updated = localProducts
-      .map((p) => {
-        if (p.id === id) {
-          return {
-            ...p,
-            name: input.name.trim(),
-            category: input.category,
-            size: input.size,
-            price: input.price.toFixed(2),
-            colors: input.colors || null,
-          }
-        }
-        return p
-      })
-      .sort((a, b) => a.name.localeCompare(b.name))
-
-    setLocalProducts(updated)
-    localStorage.setItem('amofit_products', JSON.stringify(updated))
   }
 
   /**
@@ -298,77 +177,11 @@ export function Dashboard({
       if (response && !response.success && response.error) {
         throw new Error(response.error.message)
       }
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to register sale:', err)
+      throw err
     }
-
-    let updatedProducts = [...localProducts]
-    const newMovements: Movement[] = []
-
-    for (const item of items) {
-      const isCustom = item.productId === null || item.productId === undefined || item.productId <= 0
-      let prodName = item.name || ''
-      let prodCategory = item.category || 'Outros'
-      let prodSize = item.size || 'M'
-      let unitPrice = item.price ? item.price.toFixed(2) : '0.00'
-      let sku = item.sku || null
-
-      if (!isCustom) {
-        const targetProduct = updatedProducts.find((p) => p.id === item.productId)
-        if (!targetProduct) {
-          throw new Error('Produto não encontrado')
-        }
-
-        prodName = targetProduct.name
-        prodCategory = targetProduct.category
-        prodSize = targetProduct.size
-        unitPrice = targetProduct.price
-        sku = targetProduct.sku || null
-
-        updatedProducts = updatedProducts.map((p) => {
-          if (p.id === item.productId) {
-            return { ...p, quantity: Math.max(0, p.quantity - item.quantity) }
-          }
-          return p
-        })
-      }
-
-      const totalVal = (Number(unitPrice) * item.quantity).toFixed(2)
-      const initialStatus = paymentStatus || 'paid'
-      const amountPaid = initialStatus === 'paid' ? totalVal : '0.00'
-
-      newMovements.push({
-        id: Date.now() + Math.random(),
-        userId: userName,
-        productId: isCustom ? null : item.productId!,
-        productName: prodName,
-        category: prodCategory,
-        size: prodSize,
-        quantity: item.quantity,
-        unitPrice,
-        total: totalVal,
-        paymentMethod,
-        color: item.color || null,
-        installments: installments || 1,
-        paymentStatus: initialStatus,
-        customerName: customerName || null,
-        sku,
-        amountPaid,
-        type: 'sale',
-        createdAt: new Date(),
-      })
-    }
-
-    const updatedMovements = [...newMovements, ...localMovements]
-    const updatedSummary = recalculateSummary(updatedMovements)
-
-    setLocalProducts(updatedProducts)
-    setLocalMovements(updatedMovements)
-    setLocalSummary(updatedSummary)
-
-    localStorage.setItem('amofit_products', JSON.stringify(updatedProducts))
-    localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
-    localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
   }
 
   /**
@@ -384,158 +197,50 @@ export function Dashboard({
       if (response && !response.success && response.error) {
         throw new Error(response.error.message)
       }
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to mark sale as paid:', err)
+      throw err
     }
-
-    const updatedMovements = localMovements.map((m) => {
-      if (m.id === saleId) {
-        let newAmtPaid = Number(m.amountPaid || '0')
-        let newStatus = 'paid'
-        if (amount !== undefined && amount > 0) {
-          newAmtPaid += amount
-          const totalVal = Number(m.total)
-          if (newAmtPaid < totalVal) {
-            newStatus = 'pending'
-          } else {
-            newAmtPaid = totalVal
-            newStatus = 'paid'
-          }
-        } else {
-          newAmtPaid = Number(m.total)
-          newStatus = 'paid'
-        }
-
-        return {
-          ...m,
-          paymentStatus: newStatus,
-          amountPaid: newAmtPaid.toFixed(2),
-        }
-      }
-      return m
-    })
-
-    const updatedSummary = recalculateSummary(updatedMovements)
-
-    setLocalMovements(updatedMovements)
-    setLocalSummary(updatedSummary)
-
-    localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
-    localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
   }
 
   const handleRegisterReturn = async (productId: number, qty: number) => {
     try {
       await registerReturn({ productId, quantity: qty })
+      router.refresh()
     } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
+      console.error('Failed to register return:', err)
+      throw err
     }
-
-    const targetProduct = localProducts.find((p) => p.id === productId)
-    if (!targetProduct) {
-      throw new Error('Produto não encontrado')
-    }
-
-    const updatedProducts = localProducts.map((p) => {
-      if (p.id === productId) {
-        return { ...p, quantity: p.quantity + qty }
-      }
-      return p
-    })
-
-    const newMovement: Movement = {
-      id: Date.now(),
-      userId: userName,
-      productId,
-      productName: targetProduct.name,
-      category: targetProduct.category,
-      size: targetProduct.size,
-      quantity: qty,
-      unitPrice: targetProduct.price,
-      total: '0.00',
-      paymentMethod: '—',
-      type: 'return',
-      createdAt: new Date(),
-    }
-
-    const updatedMovements = [newMovement, ...localMovements]
-    const updatedSummary = recalculateSummary(updatedMovements)
-
-    setLocalProducts(updatedProducts)
-    setLocalMovements(updatedMovements)
-    setLocalSummary(updatedSummary)
-
-    localStorage.setItem('amofit_products', JSON.stringify(updatedProducts))
-    localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
-    localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
   }
 
   const handleUndoMovement = async (movementId: number) => {
     try {
-      await undoMovement(movementId)
-    } catch (err) {
-      console.warn('Backend sync failed, running client simulation:', err)
-    }
-
-    const targetMovement = localMovements.find((m) => m.id === movementId)
-    if (!targetMovement) {
-      throw new Error('Movimentação não encontrada')
-    }
-
-    const updatedProducts = localProducts.map((p) => {
-      if (p.id === targetMovement.productId) {
-        const qtyDiff = targetMovement.quantity
-        const newQty =
-          targetMovement.type === 'sale'
-            ? p.quantity + qtyDiff
-            : Math.max(0, p.quantity - qtyDiff)
-        return { ...p, quantity: newQty }
+      const response = await undoMovement(movementId)
+      if (response && !response.success && response.error) {
+        throw new Error(response.error.message)
       }
-      return p
-    })
-
-    const updatedMovements = localMovements.filter((m) => m.id !== movementId)
-    const updatedSummary = recalculateSummary(updatedMovements)
-
-    setLocalProducts(updatedProducts)
-    setLocalMovements(updatedMovements)
-    setLocalSummary(updatedSummary)
-
-    localStorage.setItem('amofit_products', JSON.stringify(updatedProducts))
-    localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
-    localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
+      router.refresh()
+    } catch (err) {
+      console.error('Failed to undo movement:', err)
+      throw err
+    }
   }
 
   const handleClearTodaySales = () => {
     startTransition(async () => {
       try {
-        await clearTodaySales()
+        const response = await clearTodaySales()
+        if (response && !response.success && response.error) {
+          throw new Error(response.error.message)
+        }
+        toast.success('Caixa zerado para o novo dia!')
+        setResetConfirmOpen(false)
+        router.refresh()
       } catch (err) {
-        console.warn('Backend sync failed, running client simulation:', err)
+        console.error('Failed to clear today sales:', err)
+        toast.error('Não foi possível zerar o caixa. Verifique sua conexão.')
       }
-
-      const today = new Date()
-      const startOfDay = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-      ).getTime()
-
-      const updatedMovements = localMovements.filter((m) => {
-        const time = new Date(m.createdAt).getTime()
-        return !(time >= startOfDay)
-      })
-
-      const updatedSummary = recalculateSummary(updatedMovements)
-
-      setLocalMovements(updatedMovements)
-      setLocalSummary(updatedSummary)
-
-      localStorage.setItem('amofit_movements', JSON.stringify(updatedMovements))
-      localStorage.setItem('amofit_summary', JSON.stringify(updatedSummary))
-
-      toast.success('Caixa zerado para o novo dia!')
-      setResetConfirmOpen(false)
     })
   }
 
@@ -561,13 +266,13 @@ export function Dashboard({
           </Button>
         </header>
 
-        <SummaryHeader userName={userName} summary={localSummary} />
+        <SummaryHeader userName={userName} summary={summary} />
 
         <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-4">
           <button
             type="button"
             onClick={() => setSaleOpen(true)}
-            disabled={localProducts.length === 0}
+            disabled={products.length === 0}
             className="group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-brand-purple to-primary p-5 text-left text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15">
@@ -586,7 +291,7 @@ export function Dashboard({
           <button
             type="button"
             onClick={() => setReturnOpen(true)}
-            disabled={localProducts.length === 0}
+            disabled={products.length === 0}
             className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-all hover:border-primary/50 hover:bg-muted/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -640,13 +345,13 @@ export function Dashboard({
         </section>
 
         <RecentHistory
-          movements={localMovements}
+          movements={movements}
           onUndoMovement={handleUndoMovement}
           onMarkSaleAsPaid={handleMarkSaleAsPaid}
         />
 
         <StockList
-          products={localProducts}
+          products={products}
           onAdjustStock={handleAdjustStock}
           onDeleteProduct={handleDeleteProduct}
           onAddProduct={handleAddProduct}
@@ -656,9 +361,9 @@ export function Dashboard({
           }}
         />
 
-        <RecentMovements movements={localMovements} />
+        <RecentMovements movements={movements} />
 
-        <Insights products={localProducts} movements={localMovements} />
+        <Insights products={products} movements={movements} />
 
         <div className="mt-12 flex justify-center">
           <Button
@@ -682,26 +387,26 @@ export function Dashboard({
       <SaleDialog
         open={saleOpen}
         onOpenChange={setSaleOpen}
-        products={localProducts}
+        products={products}
         onRegisterSale={handleRegisterSale}
       />
       <ReturnDialog
         open={returnOpen}
         onOpenChange={setReturnOpen}
-        products={localProducts}
+        products={products}
         onRegisterReturn={handleRegisterReturn}
       />
       <SalesHistoryDialog
         open={salesHistoryOpen}
         onOpenChange={setSalesHistoryOpen}
-        movements={localMovements}
+        movements={movements}
         onMarkSaleAsPaid={handleMarkSaleAsPaid}
         onUndoMovement={handleUndoMovement}
       />
       <ProductsListDialog
         open={productsListOpen}
         onOpenChange={setProductsListOpen}
-        products={localProducts}
+        products={products}
         onAdjustStock={handleAdjustStock}
         onDeleteProduct={handleDeleteProduct}
         onEditProduct={(p) => {

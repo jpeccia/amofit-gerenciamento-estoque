@@ -450,7 +450,14 @@ export async function getRecentMovements(limit = 8) {
  * @param movementId The ID of the movement to be undone.
  * @returns A promise resolving to an object indicating success or failure.
  */
-export async function undoMovement(movementId: number) {
+export async function undoMovement(movementId: number): Promise<{
+  success: boolean
+  error?: {
+    error: string
+    message: string
+    statusCode: number
+  }
+}> {
   let userId: string
   try {
     userId = await getUserId()
@@ -567,7 +574,14 @@ export async function undoMovement(movementId: number) {
  *
  * @returns A promise resolving to an object indicating success or failure.
  */
-export async function clearTodaySales() {
+export async function clearTodaySales(): Promise<{
+  success: boolean
+  error?: {
+    error: string
+    message: string
+    statusCode: number
+  }
+}> {
   let userId: string
   try {
     userId = await getUserId()

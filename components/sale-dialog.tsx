@@ -299,9 +299,21 @@ export function SaleDialog({
         reset()
         onOpenChange(false)
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Não foi possível registrar'
-        )
+        let msg = 'Não foi possível registrar a venda.'
+        if (err instanceof Error) {
+          if (err.message === 'SALES_REGISTER_409' || err.message === 'INSUFFICIENT_STOCK') {
+            msg = 'Estoque insuficiente para um ou mais produtos selecionados.'
+          } else if (err.message === 'SALES_REGISTER_404' || err.message === 'PRODUCT_NOT_FOUND') {
+            msg = 'Um ou mais produtos não foram encontrados no estoque.'
+          } else if (err.message === 'AUTH_003' || err.message === 'Unauthorized') {
+            msg = 'Sessão expirada. Por favor, faça login novamente.'
+          } else if (err.message === 'SALES_REGISTER_400') {
+            msg = 'Dados da venda inválidos. Verifique as quantidades e preços.'
+          } else {
+            msg = `Erro: ${err.message}`
+          }
+        }
+        toast.error(msg)
       }
     })
   }
