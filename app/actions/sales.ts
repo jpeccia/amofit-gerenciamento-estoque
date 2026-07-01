@@ -325,9 +325,6 @@ export async function registerReturn(input: {
 export async function getTodaySummary() {
   try {
     const userId = await getUserId()
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
-
     const todayMovements = await db
       .select({
         type: sales.type,
@@ -337,7 +334,7 @@ export async function getTodaySummary() {
         paymentStatus: sales.paymentStatus,
       })
       .from(sales)
-      .where(and(eq(sales.userId, userId), gte(sales.createdAt, startOfDay)))
+      .where(eq(sales.userId, userId))
 
     let totalSales = 0
     let countSales = 0
