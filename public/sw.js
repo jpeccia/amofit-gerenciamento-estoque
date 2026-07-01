@@ -1,7 +1,8 @@
 /**
  * Service Worker cache version name.
+ * Bumping the version to invalidate old caches.
  */
-const CACHE_NAME = 'amofit-cache-v1';
+const CACHE_NAME = 'amofit-cache-v2';
 
 /**
  * List of local static assets to pre-cache.
@@ -37,27 +38,52 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+/**
+ * Helper to identify static assets that can be safely served Cache-First.
+ */
+const isStaticAsset = (url) => {
+  const pathname = new URL(url).pathname;
+  return (
+    pathname.startsWith('/_next/static/') ||
+    pathname.endsWith('.jpeg') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.webmanifest') ||
+    pathname.endsWith('.json')
+  );
+};
+
 self.addEventListener('fetch', (event) => {
+  // Only handle GET requests from our own origin
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
+  const url = event.request.url;
 
-      return fetch(event.request)
+  if (isStaticAsset(url)) {
+    // Cache First strategy for static assets
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        });
+      })
+    );
+  } else {
+    // Network First strategy for dynamic pages and API routes (e.g. '/', RSC calls)
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
@@ -68,10 +94,17 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
-          }
-        });
-    })
-  );
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Fallback to the homepage if navigating offline
+            if (event.request.mode === 'navigate') {
+              return caches.match('/');
+            }
+          });
+        })
+    );
+  }
 });
+
