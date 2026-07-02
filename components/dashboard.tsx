@@ -236,13 +236,16 @@ export function Dashboard({
     saleId: number,
     input: {
       customerName?: string | null
-      quantity: number
-      unitPrice: number
-      color?: string | null
       paymentMethod: string
       paymentStatus: string
       installments?: number
       amountPaid?: number
+      items: {
+        id: number
+        quantity: number
+        unitPrice: number
+        color?: string | null
+      }[]
     }
   ) => {
     try {

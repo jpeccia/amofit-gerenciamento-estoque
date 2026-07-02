@@ -215,7 +215,7 @@ export function SalesHistoryDialog({
       headers.join(';'),
       ...rows.map((row) =>
         row
-          .map((val) => {
+          .map((val: any) => {
             const str = String(val).replace(/"/g, '""')
             return `"${str}"`
           })

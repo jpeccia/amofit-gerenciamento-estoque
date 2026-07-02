@@ -29,6 +29,22 @@ import { PAYMENT_METHODS, formatBRL, type Movement, type Product } from '@/lib/c
  * @param props Component properties containing dialog open state, sale info, product list, and update callback.
  * @returns The rendered React element.
  */
+export interface EditSaleMovement extends Movement {
+  items?: Movement[]
+}
+
+interface SaleItemState {
+  id: number
+  productId: number | null
+  productName: string
+  size: string
+  sku: string | null
+  quantity: number
+  unitPrice: string
+  color: string
+  maxStock: number
+}
+
 export function EditSaleDialog({
   open,
   onOpenChange,
@@ -38,112 +54,125 @@ export function EditSaleDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sale: Movement | null
+  sale: EditSaleMovement | null
   products: Product[]
   onUpdateSale: (
     id: number,
     input: {
       customerName?: string | null
-      quantity: number
-      unitPrice: number
-      color?: string | null
       paymentMethod: string
       paymentStatus: string
       installments?: number
       amountPaid?: number
+      items: {
+        id: number
+        quantity: number
+        unitPrice: number
+        color?: string | null
+      }[]
     }
   ) => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
   const [customerName, setCustomerName] = useState('')
-  const [quantity, setQuantity] = useState(1)
-  const [unitPrice, setUnitPrice] = useState('')
-  const [color, setColor] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [paymentStatus, setPaymentStatus] = useState('paid')
   const [installments, setInstallments] = useState(1)
   const [amountPaid, setAmountPaid] = useState('')
-
-  // Find associated product if any
-  const associatedProduct = useMemo(() => {
-    if (!sale || !sale.productId) return null
-    return products.find((p) => p.id === sale.productId) || null
-  }, [sale, products])
-
-  // Get available colors for the product
-  const colorOptions = useMemo(() => {
-    if (!associatedProduct?.colors) return []
-    return associatedProduct.colors
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean)
-  }, [associatedProduct])
-
-  // Calculate maximum allowed stock: current stock + already sold quantity
-  const maxStock = useMemo(() => {
-    if (!associatedProduct) return 999999
-    return associatedProduct.quantity + (sale?.quantity || 0)
-  }, [associatedProduct, sale])
+  const [itemsState, setItemsState] = useState<SaleItemState[]>([])
 
   useEffect(() => {
     if (sale && open) {
       setCustomerName(sale.customerName || '')
-      setQuantity(sale.quantity)
-      setUnitPrice(Number(sale.unitPrice).toString().replace('.', ','))
-      setColor(sale.color || '')
       setPaymentMethod(sale.paymentMethod)
       setPaymentStatus(sale.paymentStatus || 'paid')
       setInstallments(sale.installments || 1)
-      setAmountPaid(Number(sale.amountPaid || sale.total).toString().replace('.', ','))
-    }
-  }, [sale, open])
+      setAmountPaid(
+        Number(sale.amountPaid !== null && sale.amountPaid !== undefined ? sale.amountPaid : 0)
+          .toString()
+          .replace('.', ',')
+      )
 
-  // Recalculate total dynamically
-  const parsedUnitPrice = useMemo(() => {
-    const p = Number(unitPrice.replace(',', '.'))
-    return Number.isNaN(p) ? 0 : p
-  }, [unitPrice])
+      const rawItems = sale.items && sale.items.length > 0 ? sale.items : [sale]
+      const initialized = rawItems.map((item) => {
+        const prod = products.find((p) => p.id === item.productId) || null
+        const mStock = prod ? prod.quantity + item.quantity : 999999
+        return {
+          id: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          size: item.size,
+          sku: item.sku || null,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice).toString().replace('.', ','),
+          color: item.color || '',
+          maxStock: mStock,
+        }
+      })
+      setItemsState(initialized)
+    }
+  }, [sale, open, products])
 
   const totalCalculated = useMemo(() => {
-    return parsedUnitPrice * quantity
-  }, [parsedUnitPrice, quantity])
+    return itemsState.reduce((sum, item) => {
+      const p = Number(item.unitPrice.replace(',', '.'))
+      const price = Number.isNaN(p) ? 0 : p
+      return sum + price * item.quantity
+    }, 0)
+  }, [itemsState])
+
+  const getProductColorOptions = (productId: number | null) => {
+    if (!productId) return []
+    const prod = products.find((p) => p.id === productId)
+    if (!prod?.colors) return []
+    return prod.colors
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!sale) return
 
-    const priceNum = parsedUnitPrice
-    const amtPaidNum = Number(amountPaid.replace(',', '.'))
+    for (const item of itemsState) {
+      const priceNum = Number(item.unitPrice.replace(',', '.'))
 
-    if (quantity < 1 || !Number.isInteger(quantity)) {
-      return toast.error('A quantidade deve ser um número inteiro maior ou igual a 1')
-    }
+      if (item.quantity < 1 || !Number.isInteger(item.quantity)) {
+        return toast.error(`A quantidade do item "${item.productName}" deve ser um número inteiro maior ou igual a 1`)
+      }
 
-    if (quantity > maxStock) {
-      return toast.error(`Apenas ${maxStock} unidades disponíveis em estoque.`)
-    }
+      if (item.quantity > item.maxStock) {
+        return toast.error(`Apenas ${item.maxStock} unidades disponíveis em estoque para "${item.productName}".`)
+      }
 
-    if (Number.isNaN(priceNum) || priceNum < 0) {
-      return toast.error('Informe um preço unitário válido')
+      if (Number.isNaN(priceNum) || priceNum < 0) {
+        return toast.error(`Informe um preço unitário válido para "${item.productName}"`)
+      }
     }
 
     if (paymentStatus === 'pending' && !customerName.trim()) {
       return toast.error('Informe o nome do cliente para pagamentos pendentes')
     }
 
-    const finalAmountPaid = paymentStatus === 'paid' ? totalCalculated : Number.isNaN(amtPaidNum) ? 0 : amtPaidNum
+    const amtPaidNum = Number(amountPaid.replace(',', '.'))
+    const finalAmountPaid =
+      paymentStatus === 'paid' ? totalCalculated : Number.isNaN(amtPaidNum) ? 0 : amtPaidNum
 
     startTransition(async () => {
       try {
         await onUpdateSale(sale.id, {
           customerName: customerName.trim() || null,
-          quantity,
-          unitPrice: priceNum,
-          color: color.trim() || null,
           paymentMethod,
           paymentStatus,
           installments: paymentStatus === 'pending' || paymentMethod === 'Cartão' ? installments : 1,
           amountPaid: finalAmountPaid,
+          items: itemsState.map((it) => ({
+            id: it.id,
+            quantity: it.quantity,
+            unitPrice: Number(it.unitPrice.replace(',', '.')),
+            color: it.color.trim() || null,
+          })),
         })
         toast.success('Venda atualizada com sucesso')
         onOpenChange(false)
@@ -183,100 +212,141 @@ export function EditSaleDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
-          {/* PRODUCT NAME DISPLAY ONLY */}
-          <div className="p-3 bg-muted/30 border border-border/60 rounded-xl">
-            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">
-              Produto Vendido
-            </p>
-            <p className="text-xs font-bold text-foreground">
-              {sale?.productName} ({sale?.size})
-              {sale?.productId === null && (
-                <span className="ml-1 text-[8px] bg-primary/10 text-primary border border-primary/20 px-1 rounded">
-                  Avulso
-                </span>
-              )}
-            </p>
-            {sale?.sku && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Ref: {sale.sku}
-              </p>
-            )}
-          </div>
+          {/* ITEMS LIST */}
+          <div className="flex flex-col gap-4">
+            {itemsState.map((item, index) => {
+              const colors = getProductColorOptions(item.productId)
+              return (
+                <div key={item.id} className="p-3 border border-border bg-muted/20 rounded-xl flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold text-foreground">
+                        {item.productName} ({item.size})
+                        {item.productId === null && (
+                          <span className="ml-1 text-[8px] bg-primary/10 text-primary border border-primary/20 px-1 rounded font-bold">
+                            Avulso
+                          </span>
+                        )}
+                      </p>
+                      {item.sku && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Ref: {item.sku}
+                        </p>
+                      )}
+                    </div>
+                    {itemsState.length > 1 && (
+                      <span className="text-[10px] bg-brand-purple/10 text-brand-purple px-2 py-0.5 rounded-full font-bold">
+                        Item {index + 1}
+                      </span>
+                    )}
+                  </div>
 
-          {/* QUANTITY & UNIT PRICE */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-sale-qty">Quantidade</Label>
-              <div className="flex items-center gap-1.5 border border-border rounded-lg bg-background p-0.5">
-                <button
-                  type="button"
-                  className="h-8 w-8 flex items-center justify-center rounded text-sm hover:bg-muted font-bold cursor-pointer"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                >
-                  –
-                </button>
-                <span className="flex-1 text-center font-heading text-xs font-bold tabular-nums">
-                  {quantity}
-                </span>
-                <button
-                  type="button"
-                  className="h-8 w-8 flex items-center justify-center rounded text-sm hover:bg-muted font-bold cursor-pointer"
-                  onClick={() => setQuantity((q) => Math.min(maxStock, q + 1))}
-                >
-                  +
-                </button>
-              </div>
-              {associatedProduct && (
-                <span className="text-[10px] text-muted-foreground text-center">
-                  Máximo: {maxStock} un.
-                </span>
-              )}
-            </div>
+                  {/* QUANTITY & UNIT PRICE */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs">Quantidade</Label>
+                      <div className="flex items-center gap-1.5 border border-border rounded-lg bg-background p-0.5">
+                        <button
+                          type="button"
+                          className="h-8 w-8 flex items-center justify-center rounded text-sm hover:bg-muted font-bold cursor-pointer"
+                          onClick={() => {
+                            setItemsState((prev) =>
+                              prev.map((it) =>
+                                it.id === item.id
+                                  ? { ...it, quantity: Math.max(1, it.quantity - 1) }
+                                  : it
+                              )
+                            )
+                          }}
+                        >
+                          –
+                        </button>
+                        <span className="flex-1 text-center font-heading text-xs font-bold tabular-nums">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          className="h-8 w-8 flex items-center justify-center rounded text-sm hover:bg-muted font-bold cursor-pointer"
+                          onClick={() => {
+                            setItemsState((prev) =>
+                              prev.map((it) =>
+                                it.id === item.id
+                                  ? { ...it, quantity: Math.min(it.maxStock, it.quantity + 1) }
+                                  : it
+                              )
+                            )
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                      {item.productId && (
+                        <span className="text-[9px] text-muted-foreground text-center">
+                          Máximo: {item.maxStock} un.
+                        </span>
+                      )}
+                    </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-sale-price">Valor Unitário (R$)</Label>
-              <Input
-                id="edit-sale-price"
-                placeholder="0,00"
-                className="h-9 text-xs"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-              />
-            </div>
-          </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs">Valor Unitário (R$)</Label>
+                      <Input
+                        placeholder="0,00"
+                        className="h-9 text-xs"
+                        value={item.unitPrice}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setItemsState((prev) =>
+                            prev.map((it) => (it.id === item.id ? { ...it, unitPrice: val } : it))
+                          )
+                        }}
+                      />
+                    </div>
+                  </div>
 
-          {/* COLOR */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-sale-color">Cor Vendida</Label>
-            {colorOptions.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {colorOptions.map((c) => {
-                  const isSelected = color === c
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColor(c)}
-                      className={`px-3 py-1 rounded-lg text-xs border font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-brand-purple text-brand-purple-foreground border-brand-purple shadow-sm'
-                          : 'bg-background text-muted-foreground border-border hover:bg-muted/40'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <Input
-                id="edit-sale-color"
-                placeholder="Ex: Preto"
-                className="h-9 text-xs"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-              />
-            )}
+                  {/* COLOR */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs">Cor Vendida</Label>
+                    {colors.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {colors.map((c) => {
+                          const isSelected = item.color === c
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => {
+                                setItemsState((prev) =>
+                                  prev.map((it) => (it.id === item.id ? { ...it, color: c } : it))
+                                )
+                              }}
+                              className={`px-2 py-0.5 rounded text-[10px] border font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-brand-purple text-brand-purple-foreground border-brand-purple shadow-sm'
+                                  : 'bg-background text-muted-foreground border-border hover:bg-muted/40'
+                              }`}
+                            >
+                              {c}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <Input
+                        placeholder="Ex: Preto"
+                        className="h-9 text-xs"
+                        value={item.color}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setItemsState((prev) =>
+                            prev.map((it) => (it.id === item.id ? { ...it, color: val } : it))
+                          )
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* PAYMENT DETAILS */}

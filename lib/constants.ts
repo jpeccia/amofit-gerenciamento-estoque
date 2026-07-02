@@ -44,6 +44,7 @@ export type Movement = {
   customerName?: string | null
   sku?: string | null
   amountPaid?: string | null
+  saleGroupId?: string | null
   createdAt: Date
 }
 
