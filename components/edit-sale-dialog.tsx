@@ -212,141 +212,39 @@ export function EditSaleDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
-          {/* ITEMS LIST */}
-          <div className="flex flex-col gap-4">
-            {itemsState.map((item, index) => {
-              const colors = getProductColorOptions(item.productId)
-              return (
-                <div key={item.id} className="p-3 border border-border bg-muted/20 rounded-xl flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs font-bold text-foreground">
-                        {item.productName} ({item.size})
-                        {item.productId === null && (
-                          <span className="ml-1 text-[8px] bg-primary/10 text-primary border border-primary/20 px-1 rounded font-bold">
-                            Avulso
-                          </span>
-                        )}
-                      </p>
-                      {item.sku && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Ref: {item.sku}
-                        </p>
-                      )}
-                    </div>
-                    {itemsState.length > 1 && (
-                      <span className="text-[10px] bg-brand-purple/10 text-brand-purple px-2 py-0.5 rounded-full font-bold">
-                        Item {index + 1}
+          {/* LIST OF SOLD PRODUCTS (READ-ONLY) */}
+          <div className="flex flex-col gap-2.5 p-3.5 bg-muted/40 border border-border/80 rounded-xl">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+              Produtos Vendidos
+            </p>
+            <div className="flex flex-col gap-3">
+              {itemsState.map((item) => {
+                const priceNum = Number(item.unitPrice.replace(',', '.'))
+                const itemTotal = priceNum * item.quantity
+                return (
+                  <div key={item.id} className="flex justify-between items-start text-xs border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-foreground">
+                        {item.quantity}x {item.productName}
                       </span>
-                    )}
-                  </div>
-
-                  {/* QUANTITY & UNIT PRICE */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs">Quantidade</Label>
-                      <div className="flex items-center gap-1.5 border border-border rounded-lg bg-background p-0.5">
-                        <button
-                          type="button"
-                          className="h-8 w-8 flex items-center justify-center rounded text-sm hover:bg-muted font-bold cursor-pointer"
-                          onClick={() => {
-                            setItemsState((prev) =>
-                              prev.map((it) =>
-                                it.id === item.id
-                                  ? { ...it, quantity: Math.max(1, it.quantity - 1) }
-                                  : it
-                              )
-                            )
-                          }}
-                        >
-                          –
-                        </button>
-                        <span className="flex-1 text-center font-heading text-xs font-bold tabular-nums">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          className="h-8 w-8 flex items-center justify-center rounded text-sm hover:bg-muted font-bold cursor-pointer"
-                          onClick={() => {
-                            setItemsState((prev) =>
-                              prev.map((it) =>
-                                it.id === item.id
-                                  ? { ...it, quantity: Math.min(it.maxStock, it.quantity + 1) }
-                                  : it
-                              )
-                            )
-                          }}
-                        >
-                          +
-                        </button>
-                      </div>
-                      {item.productId && (
-                        <span className="text-[9px] text-muted-foreground text-center">
-                          Máximo: {item.maxStock} un.
-                        </span>
-                      )}
+                      <span className="text-[10px] text-muted-foreground mt-0.5">
+                        Tamanho: {item.size}
+                        {item.color && ` · Cor: ${item.color}`}
+                        {item.sku && ` · Ref: ${item.sku}`}
+                      </span>
                     </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs">Valor Unitário (R$)</Label>
-                      <Input
-                        placeholder="0,00"
-                        className="h-9 text-xs"
-                        value={item.unitPrice}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setItemsState((prev) =>
-                            prev.map((it) => (it.id === item.id ? { ...it, unitPrice: val } : it))
-                          )
-                        }}
-                      />
+                    <div className="flex flex-col items-end shrink-0">
+                      <span className="font-semibold text-foreground">
+                        {formatBRL(itemTotal)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5">
+                        {formatBRL(priceNum)} / un.
+                      </span>
                     </div>
                   </div>
-
-                  {/* COLOR */}
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs">Cor Vendida</Label>
-                    {colors.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {colors.map((c) => {
-                          const isSelected = item.color === c
-                          return (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => {
-                                setItemsState((prev) =>
-                                  prev.map((it) => (it.id === item.id ? { ...it, color: c } : it))
-                                )
-                              }}
-                              className={`px-2 py-0.5 rounded text-[10px] border font-bold transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-brand-purple text-brand-purple-foreground border-brand-purple shadow-sm'
-                                  : 'bg-background text-muted-foreground border-border hover:bg-muted/40'
-                              }`}
-                            >
-                              {c}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <Input
-                        placeholder="Ex: Preto"
-                        className="h-9 text-xs"
-                        value={item.color}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setItemsState((prev) =>
-                            prev.map((it) => (it.id === item.id ? { ...it, color: val } : it))
-                          )
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
 
           {/* PAYMENT DETAILS */}
