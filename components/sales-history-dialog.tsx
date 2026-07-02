@@ -64,7 +64,48 @@ export function SalesHistoryDialog({
   }, [search, statusFilter, methodFilter])
 
   const salesOnly = useMemo(() => {
-    return movements.filter((m) => m.type === 'sale')
+    const rawSales = movements.filter((m) => m.type === 'sale')
+    const groups: Record<string, Movement & { items?: Movement[] }> = {}
+
+    for (const m of rawSales) {
+      const key = m.saleGroupId || `single-${m.id}`
+      if (!groups[key]) {
+        groups[key] = {
+          ...m,
+          items: [],
+        }
+      }
+      groups[key].items?.push(m)
+    }
+
+    return Object.values(groups).map((group) => {
+      const items = group.items || []
+      if (items.length <= 1) {
+        return group
+      }
+
+      const totalVal = items.reduce((sum, item) => sum + Number(item.total), 0)
+      const paidVal = items.reduce((sum, item) => sum + Number(item.amountPaid || 0), 0)
+      const qty = items.reduce((sum, item) => sum + item.quantity, 0)
+      const isPending = items.some((item) => item.paymentStatus === 'pending')
+
+      const productNames = items.map((item) => `${item.quantity}x ${item.productName}`).join(' + ')
+      const sizes = Array.from(new Set(items.map((item) => item.size))).join(', ')
+      const colors = Array.from(new Set(items.map((item) => item.color).filter(Boolean))).join(', ')
+      const skus = Array.from(new Set(items.map((item) => item.sku).filter(Boolean))).join(', ')
+
+      return {
+        ...group,
+        total: totalVal.toFixed(2),
+        amountPaid: paidVal.toFixed(2),
+        quantity: qty,
+        productName: productNames,
+        size: sizes,
+        color: colors || null,
+        sku: skus || null,
+        paymentStatus: isPending ? 'pending' : 'paid',
+      }
+    })
   }, [movements])
 
   const filteredSales = useMemo(() => {
@@ -148,21 +189,27 @@ export function SalesHistoryDialog({
       'Status de Pagamento'
     ]
 
-    const rows = filteredSales.map((m) => [
-      formatTime(m.createdAt),
-      m.customerName || '—',
-      m.sku || '—',
-      m.productName,
-      m.size,
-      m.color || '—',
-      m.quantity,
-      Number(m.unitPrice).toFixed(2),
-      Number(m.total).toFixed(2),
-      Number(m.amountPaid || m.total).toFixed(2),
-      m.paymentMethod,
-      m.installments || 1,
-      m.paymentStatus === 'pending' ? 'Pendente' : 'Pago'
-    ])
+    const rows: any[] = []
+    for (const m of filteredSales) {
+      const items = (m as any).items || [m]
+      for (const item of items) {
+        rows.push([
+          formatTime(item.createdAt),
+          item.customerName || '—',
+          item.sku || '—',
+          item.productName,
+          item.size,
+          item.color || '—',
+          item.quantity,
+          Number(item.unitPrice).toFixed(2),
+          Number(item.total).toFixed(2),
+          Number(item.amountPaid || item.total).toFixed(2),
+          item.paymentMethod,
+          item.installments || 1,
+          item.paymentStatus === 'pending' ? 'Pendente' : 'Pago'
+        ])
+      }
+    }
 
     const csvContent = [
       headers.join(';'),
@@ -286,18 +333,31 @@ export function SalesHistoryDialog({
                       <td className="py-3 px-3 font-semibold text-brand-purple truncate">
                         {m.customerName || '—'}
                       </td>
-                      <td className="py-3 px-4 truncate">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-foreground">{m.productName}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">
-                            {m.color && `Cor: ${m.color}`}
-                            {m.sku && ` · Ref: ${m.sku}`}
-                            {` · Qtd: ${m.quantity}`}
-                          </span>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col gap-0.5 max-w-full overflow-hidden">
+                          {(m as any).items && (m as any).items.length > 1 ? (
+                            ((m as any).items as Movement[]).map((item) => (
+                              <div key={item.id} className="text-xs text-foreground font-medium truncate">
+                                {item.quantity}x {item.productName}
+                                <span className="text-[10px] text-muted-foreground font-normal ml-1">
+                                  ({item.size}){item.color ? ` · ${item.color}` : ''}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <>
+                              <span className="font-medium text-foreground truncate">{m.productName}</span>
+                              <span className="text-[10px] text-muted-foreground font-normal truncate">
+                                {m.color && `Cor: ${m.color}`}
+                                {m.sku && ` · Ref: ${m.sku}`}
+                                {` · Qtd: ${m.quantity}`}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-2 text-center">
-                        <Badge variant="outline" className="font-bold">
+                        <Badge variant="outline" className="font-bold max-w-full truncate">
                           {m.size}
                         </Badge>
                       </td>

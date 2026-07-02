@@ -89,9 +89,45 @@ export function Insights({
 
   const pendingDebts = useMemo(() => {
     const pendingSales = salesOnly.filter((s) => s.paymentStatus === 'pending')
+
+    const groups: Record<string, (typeof pendingSales)[0] & { items?: typeof pendingSales }> = {}
+
+    for (const s of pendingSales) {
+      const key = s.saleGroupId || `single-${s.id}`
+      if (!groups[key]) {
+        groups[key] = {
+          ...s,
+          items: [],
+        }
+      }
+      groups[key].items?.push(s)
+    }
+
+    const groupedPendingSales = Object.values(groups).map((group) => {
+      const items = group.items || []
+      if (items.length <= 1) {
+        return group
+      }
+      const totalVal = items.reduce((sum, item) => sum + Number(item.total), 0)
+      const paidVal = items.reduce((sum, item) => sum + Number(item.amountPaid || 0), 0)
+      const qty = items.reduce((sum, item) => sum + item.quantity, 0)
+
+      const productNames = items.map((item) => item.productName).join(', ')
+      const sizes = Array.from(new Set(items.map((item) => item.size))).join(', ')
+
+      return {
+        ...group,
+        total: totalVal.toFixed(2),
+        amountPaid: paidVal.toFixed(2),
+        quantity: qty,
+        productName: productNames,
+        size: sizes,
+      }
+    })
+
     const totalPending = pendingSales.reduce((sum, s) => sum + (Number(s.total) - Number(s.amountPaid || 0)), 0)
     const uniqueCustomers = new Set(pendingSales.map((s) => s.customerName).filter(Boolean))
-    return { total: totalPending, customersCount: uniqueCustomers.size, sales: pendingSales }
+    return { total: totalPending, customersCount: uniqueCustomers.size, sales: groupedPendingSales }
   }, [salesOnly])
 
   const lowStockAlerts = useMemo(() => {

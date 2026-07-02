@@ -45,12 +45,57 @@ export function RecentHistory({
     ).getTime()
     const todayEnd = todayStart + 24 * 60 * 60 * 1000
 
-    return movements
-      .filter((m) => {
-        const time = new Date(m.createdAt).getTime()
-        return time >= todayStart && time < todayEnd
-      })
-      .slice(0, 5)
+    const todaysRaw = movements.filter((m) => {
+      const time = new Date(m.createdAt).getTime()
+      return time >= todayStart && time < todayEnd
+    })
+
+    const groups: Record<string, Movement & { items?: Movement[] }> = {}
+    const resultList: (Movement & { items?: Movement[] })[] = []
+
+    for (const m of todaysRaw) {
+      if (m.type !== 'sale') {
+        resultList.push(m)
+        continue
+      }
+
+      const key = m.saleGroupId || `single-${m.id}`
+      if (!groups[key]) {
+        groups[key] = {
+          ...m,
+          items: [],
+        }
+        resultList.push(groups[key])
+      }
+      groups[key].items?.push(m)
+    }
+
+    return resultList.map((m) => {
+      const items = m.items || []
+      if (items.length <= 1) {
+        return m
+      }
+
+      const totalVal = items.reduce((sum, item) => sum + Number(item.total), 0)
+      const paidVal = items.reduce((sum, item) => sum + Number(item.amountPaid || 0), 0)
+      const qty = items.reduce((sum, item) => sum + item.quantity, 0)
+      const isPending = items.some((item) => item.paymentStatus === 'pending')
+
+      const productNames = items.map((item) => `${item.quantity}x ${item.productName}`).join(', ')
+      const sizes = Array.from(new Set(items.map((item) => item.size))).join(', ')
+      const colors = Array.from(new Set(items.map((item) => item.color).filter(Boolean))).join(', ')
+
+      return {
+        ...m,
+        total: totalVal.toFixed(2),
+        amountPaid: paidVal.toFixed(2),
+        quantity: qty,
+        productName: productNames,
+        size: sizes,
+        color: colors || null,
+        paymentStatus: isPending ? 'pending' : 'paid',
+      }
+    }).slice(0, 5)
   }, [movements])
 
   if (dailyMovements.length === 0) {
@@ -107,13 +152,26 @@ export function RecentHistory({
                 </span>
 
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-foreground min-w-0">
-                  <span className="truncate">
+                  <span className="truncate max-w-full flex flex-wrap gap-1 items-center">
                     {m.type === 'sale'
                       ? 'Venda:'
                       : m.type === 'return'
                       ? 'Retorno:'
                       : 'Entrada:'}{' '}
-                    {m.quantity}x {m.productName} {m.size}
+                    {((m as any).items && (m as any).items.length > 1) ? (
+                      ((m as any).items as Movement[]).map((item, idx) => (
+                        <span key={item.id} className="inline-flex items-center">
+                          {idx > 0 && <span className="mx-1 text-muted-foreground">+</span>}
+                          <span className="font-semibold text-foreground">{item.quantity}x {item.productName}</span>
+                          <span className="text-xs text-muted-foreground font-normal ml-0.5">({item.size})</span>
+                        </span>
+                      ))
+                    ) : (
+                      <>
+                        <span className="font-semibold text-foreground">{m.quantity}x {m.productName}</span>
+                        <span className="text-xs text-muted-foreground font-normal ml-0.5">({m.size})</span>
+                      </>
+                    )}
                   </span>
                   {m.color && (
                     <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-semibold">

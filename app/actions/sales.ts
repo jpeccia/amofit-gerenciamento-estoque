@@ -7,6 +7,7 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { PAYMENT_METHODS } from '@/lib/constants'
+import { randomUUID } from 'crypto'
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -46,6 +47,7 @@ async function getUserId() {
     statusCode: number
   }
 }> {
+  const saleGroupId = randomUUID()
   let userId: string
   try {
     userId = await getUserId()
@@ -219,6 +221,7 @@ async function getUserId() {
           sku,
           amountPaid: amountPaid.toFixed(2),
           type: 'sale',
+          saleGroupId,
         })
       }
     })
@@ -327,15 +330,19 @@ export async function getTodaySummary() {
     const userId = await getUserId()
     const todayMovements = await db
       .select({
+        id: sales.id,
         type: sales.type,
         total: sales.total,
         quantity: sales.quantity,
         paymentMethod: sales.paymentMethod,
         paymentStatus: sales.paymentStatus,
+        amountPaid: sales.amountPaid,
+        saleGroupId: sales.saleGroupId,
       })
       .from(sales)
       .where(eq(sales.userId, userId))
 
+    const uniqueSaleGroups = new Set<string>()
     let totalSales = 0
     let countSales = 0
     let countReturns = 0
@@ -351,10 +358,9 @@ export async function getTodaySummary() {
       if (m.type === 'sale') {
         const val = Number(m.total)
         totalSales += val
-        countSales += 1
         itemsSold += m.quantity
         if (m.paymentStatus === 'pending') {
-          totalPending += val
+          totalPending += (val - Number(m.amountPaid || 0))
         }
         if (m.paymentMethod === 'Pix') {
           paymentBreakdown.Pix += val
@@ -362,6 +368,12 @@ export async function getTodaySummary() {
           paymentBreakdown['Cartão'] += val
         } else if (m.paymentMethod === 'Dinheiro') {
           paymentBreakdown.Dinheiro += val
+        }
+
+        const groupKey = m.saleGroupId || `single-${m.id}`
+        if (!uniqueSaleGroups.has(groupKey)) {
+          uniqueSaleGroups.add(groupKey)
+          countSales += 1
         }
       } else if (m.type === 'return') {
         countReturns += 1
@@ -497,29 +509,38 @@ export async function undoMovement(movementId: number): Promise<{
         throw new Error('MOVEMENT_NOT_FOUND')
       }
 
-      if (movement.productId) {
-        const [product] = await tx
-          .select()
-          .from(products)
-          .where(
-            and(eq(products.id, movement.productId), eq(products.userId, userId))
-          )
+      const movementsToUndo = (movement.type === 'sale' && movement.saleGroupId)
+        ? await tx
+            .select()
+            .from(sales)
+            .where(and(eq(sales.saleGroupId, movement.saleGroupId), eq(sales.userId, userId)))
+        : [movement]
 
-        if (product) {
-          const qtyDiff = movement.quantity
-          const newQty =
-            movement.type === 'sale'
-              ? product.quantity + qtyDiff
-              : Math.max(0, product.quantity - qtyDiff)
+      for (const mov of movementsToUndo) {
+        if (mov.productId) {
+          const [product] = await tx
+            .select()
+            .from(products)
+            .where(
+              and(eq(products.id, mov.productId), eq(products.userId, userId))
+            )
 
-          await tx
-            .update(products)
-            .set({ quantity: newQty })
-            .where(eq(products.id, product.id))
+          if (product) {
+            const qtyDiff = mov.quantity
+            const newQty =
+              mov.type === 'sale'
+                ? product.quantity + qtyDiff
+                : Math.max(0, product.quantity - qtyDiff)
+
+            await tx
+              .update(products)
+              .set({ quantity: newQty })
+              .where(eq(products.id, product.id))
+          }
         }
-      }
 
-      await tx.delete(sales).where(eq(sales.id, movementId))
+        await tx.delete(sales).where(eq(sales.id, mov.id))
+      }
       return { success: true }
     })
 
@@ -714,40 +735,90 @@ export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
       }
     }
 
-    let newAmountPaid: number
-    let newStatus = 'paid'
+    if (sale.saleGroupId) {
+      const groupSales = await db
+        .select()
+        .from(sales)
+        .where(and(eq(sales.saleGroupId, sale.saleGroupId), eq(sales.userId, userId)))
+        .orderBy(sales.id)
 
-    if (amount !== undefined && amount > 0) {
-      newAmountPaid = Number(sale.amountPaid || '0') + amount
-      const totalVal = Number(sale.total)
-      if (newAmountPaid < totalVal) {
-        newStatus = 'pending'
+      const groupTotal = groupSales.reduce((sum, s) => sum + Number(s.total), 0)
+
+      if (amount !== undefined && amount > 0) {
+        const groupCurrentPaid = groupSales.reduce((sum, s) => sum + Number(s.amountPaid || '0'), 0)
+        let newCumulativePaid = groupCurrentPaid + amount
+        newCumulativePaid = Math.min(newCumulativePaid, groupTotal)
+
+        await db.transaction(async (tx) => {
+          for (const item of groupSales) {
+            const itemTotal = Number(item.total)
+            let itemPaid = 0
+            if (newCumulativePaid >= itemTotal) {
+              itemPaid = itemTotal
+              newCumulativePaid -= itemTotal
+            } else {
+              itemPaid = newCumulativePaid
+              newCumulativePaid = 0
+            }
+            const itemStatus = itemPaid >= itemTotal ? 'paid' : 'pending'
+            await tx
+              .update(sales)
+              .set({
+                paymentStatus: itemStatus,
+                amountPaid: itemPaid.toFixed(2),
+              })
+              .where(eq(sales.id, item.id))
+          }
+        })
       } else {
-        newAmountPaid = totalVal // Cap at total
-        newStatus = 'paid'
+        await db.transaction(async (tx) => {
+          for (const item of groupSales) {
+            await tx
+              .update(sales)
+              .set({
+                paymentStatus: 'paid',
+                amountPaid: Number(item.total).toFixed(2),
+              })
+              .where(eq(sales.id, item.id))
+          }
+        })
       }
     } else {
-      newAmountPaid = Number(sale.total)
-      newStatus = 'paid'
-    }
+      let newAmountPaid: number
+      let newStatus = 'paid'
 
-    const updated = await db
-      .update(sales)
-      .set({
-        paymentStatus: newStatus,
-        amountPaid: newAmountPaid.toFixed(2),
-      })
-      .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
-      .returning()
+      if (amount !== undefined && amount > 0) {
+        newAmountPaid = Number(sale.amountPaid || '0') + amount
+        const totalVal = Number(sale.total)
+        if (newAmountPaid < totalVal) {
+          newStatus = 'pending'
+        } else {
+          newAmountPaid = totalVal // Cap at total
+          newStatus = 'paid'
+        }
+      } else {
+        newAmountPaid = Number(sale.total)
+        newStatus = 'paid'
+      }
 
-    if (updated.length === 0) {
-      return {
-        success: false,
-        error: {
-          error: 'NotFound',
-          message: 'SALES_UPDATE_404',
-          statusCode: 404,
-        },
+      const updated = await db
+        .update(sales)
+        .set({
+          paymentStatus: newStatus,
+          amountPaid: newAmountPaid.toFixed(2),
+        })
+        .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
+        .returning()
+
+      if (updated.length === 0) {
+        return {
+          success: false,
+          error: {
+            error: 'NotFound',
+            message: 'SALES_UPDATE_404',
+            statusCode: 404,
+          },
+        }
       }
     }
 
@@ -917,28 +988,99 @@ export async function updateSale(
 
       const total = input.unitPrice * input.quantity
       const initialStatus = input.paymentStatus || 'paid'
-      let amountPaid = 0
 
-      if (initialStatus === 'paid') {
-        amountPaid = total
-      } else if (input.amountPaid !== undefined) {
-        amountPaid = Math.min(total, Math.max(0, input.amountPaid))
+      if (sale.saleGroupId) {
+        // Fetch all sales in the group
+        const groupSales = await tx
+          .select()
+          .from(sales)
+          .where(and(eq(sales.saleGroupId, sale.saleGroupId), eq(sales.userId, userId)))
+          .orderBy(sales.id)
+
+        // Calculate the new group total
+        const otherItemsTotal = groupSales
+          .filter((s) => s.id !== saleId)
+          .reduce((sum, s) => sum + Number(s.total), 0)
+        const groupTotal = otherItemsTotal + total
+
+        let newGroupPaid = 0
+        if (initialStatus === 'paid') {
+          newGroupPaid = groupTotal
+        } else if (input.amountPaid !== undefined) {
+          newGroupPaid = Math.min(groupTotal, Math.max(0, input.amountPaid))
+        }
+
+        // We will update each item's common fields first, and the edited item's specific fields
+        for (const item of groupSales) {
+          const isEdited = item.id === saleId
+          const itemQty = isEdited ? input.quantity : item.quantity
+          const itemUnitPrice = isEdited ? input.unitPrice : Number(item.unitPrice)
+          const itemTotal = isEdited ? total : Number(item.total)
+          const itemColor = isEdited ? (input.color || null) : item.color
+
+          await tx
+            .update(sales)
+            .set({
+              customerName: input.customerName || null,
+              paymentMethod: input.paymentMethod,
+              installments: input.installments || 1,
+              quantity: itemQty,
+              unitPrice: itemUnitPrice.toFixed(2),
+              total: itemTotal.toFixed(2),
+              color: itemColor,
+            })
+            .where(eq(sales.id, item.id))
+        }
+
+        // Distribute the total group paid across the items
+        let remainingPaid = newGroupPaid
+        for (const item of groupSales) {
+          const isEdited = item.id === saleId
+          const itemTotal = isEdited ? total : Number(item.total)
+          let itemPaid = 0
+
+          if (remainingPaid >= itemTotal) {
+            itemPaid = itemTotal
+            remainingPaid -= itemTotal
+          } else {
+            itemPaid = remainingPaid
+            remainingPaid = 0
+          }
+
+          const itemStatus = itemPaid >= itemTotal ? 'paid' : 'pending'
+
+          await tx
+            .update(sales)
+            .set({
+              paymentStatus: itemStatus,
+              amountPaid: itemPaid.toFixed(2),
+            })
+            .where(eq(sales.id, item.id))
+        }
+      } else {
+        // Fallback for single/ungrouped sale
+        let amountPaid = 0
+        if (initialStatus === 'paid') {
+          amountPaid = total
+        } else if (input.amountPaid !== undefined) {
+          amountPaid = Math.min(total, Math.max(0, input.amountPaid))
+        }
+
+        await tx
+          .update(sales)
+          .set({
+            customerName: input.customerName || null,
+            quantity: input.quantity,
+            unitPrice: input.unitPrice.toFixed(2),
+            total: total.toFixed(2),
+            paymentMethod: input.paymentMethod,
+            color: input.color || null,
+            installments: input.installments || 1,
+            paymentStatus: initialStatus,
+            amountPaid: amountPaid.toFixed(2),
+          })
+          .where(eq(sales.id, saleId))
       }
-
-      await tx
-        .update(sales)
-        .set({
-          customerName: input.customerName || null,
-          quantity: input.quantity,
-          unitPrice: input.unitPrice.toFixed(2),
-          total: total.toFixed(2),
-          paymentMethod: input.paymentMethod,
-          color: input.color || null,
-          installments: input.installments || 1,
-          paymentStatus: initialStatus,
-          amountPaid: amountPaid.toFixed(2),
-        })
-        .where(eq(sales.id, saleId))
 
       return { success: true }
     })
