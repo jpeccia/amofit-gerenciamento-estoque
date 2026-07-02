@@ -121,15 +121,6 @@ export function EditSaleDialog({
     }, 0)
   }, [itemsState])
 
-  const getProductColorOptions = (productId: number | null) => {
-    if (!productId) return []
-    const prod = products.find((p) => p.id === productId)
-    if (!prod?.colors) return []
-    return prod.colors
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean)
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
