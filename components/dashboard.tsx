@@ -435,6 +435,7 @@ export function Dashboard({
         open={salesHistoryOpen}
         onOpenChange={setSalesHistoryOpen}
         movements={allSales}
+        products={products}
         onMarkSaleAsPaid={handleMarkSaleAsPaid}
         onUndoMovement={handleUndoMovement}
         onEditSale={(sale) => {

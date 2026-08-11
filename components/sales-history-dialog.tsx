@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useTransition } from 'react'
-import { Search, RotateCcw, Download, Pencil } from 'lucide-react'
+import { Search, RotateCcw, Download, Pencil, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -13,7 +13,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { formatBRL, type Movement } from '@/lib/constants'
+import { formatBRL, type Movement, type Product } from '@/lib/constants'
+import { generateFullCSV, generateReportPDF } from '@/components/report-generator'
 
 /**
  * Format a Date object or timestamp to a readable date/time string.
@@ -41,6 +42,7 @@ export function SalesHistoryDialog({
   open,
   onOpenChange,
   movements,
+  products = [],
   onMarkSaleAsPaid,
   onUndoMovement,
   onEditSale,
@@ -48,6 +50,7 @@ export function SalesHistoryDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   movements: Movement[]
+  products?: Product[]
   onMarkSaleAsPaid: (id: number, amount?: number) => Promise<void>
   onUndoMovement: (id: number) => Promise<void>
   onEditSale: (sale: Movement) => void
@@ -173,85 +176,54 @@ export function SalesHistoryDialog({
   }
 
   function handleExportCSV() {
-    const headers = [
-      'Data',
-      'Cliente',
-      'Referência / SKU',
-      'Produto',
-      'Tamanho',
-      'Cor',
-      'Quantidade',
-      'Valor Unitário (R$)',
-      'Total (R$)',
-      'Valor Pago (R$)',
-      'Método de Pagamento',
-      'Parcelas',
-      'Status de Pagamento'
-    ]
-
-    const rows: any[] = []
-    for (const m of filteredSales) {
-      const items = (m as any).items || [m]
-      for (const item of items) {
-        rows.push([
-          formatTime(item.createdAt),
-          item.customerName || '—',
-          item.sku || '—',
-          item.productName,
-          item.size,
-          item.color || '—',
-          item.quantity,
-          Number(item.unitPrice).toFixed(2),
-          Number(item.total).toFixed(2),
-          Number(item.amountPaid || item.total).toFixed(2),
-          item.paymentMethod,
-          item.installments || 1,
-          item.paymentStatus === 'pending' ? 'Pendente' : 'Pago'
-        ])
-      }
+    try {
+      generateFullCSV(movements, products)
+      toast.success('Relatório CSV exportado com sucesso!')
+    } catch (err) {
+      console.error('Erro ao exportar CSV:', err)
+      toast.error('Erro ao gerar relatório CSV.')
     }
+  }
 
-    const csvContent = [
-      headers.join(';'),
-      ...rows.map((row) =>
-        row
-          .map((val: any) => {
-            const str = String(val).replace(/"/g, '""')
-            return `"${str}"`
-          })
-          .join(';')
-      )
-    ].join('\n')
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `vendas_amofit_${new Date().toISOString().slice(0, 10)}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    toast.success('CSV de vendas exportado!')
+  function handleExportPDF() {
+    try {
+      generateReportPDF(movements, products)
+      toast.success('Relatório PDF baixado com sucesso!')
+    } catch (err) {
+      console.error('Erro ao exportar PDF:', err)
+      toast.error('Erro ao gerar relatório PDF.')
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col gap-4 overflow-hidden">
-        <DialogHeader className="flex flex-row items-center justify-between gap-4">
+        <DialogHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <DialogTitle className="text-brand-purple">Histórico de Vendas</DialogTitle>
             <DialogDescription>
               Consulte todas as vendas realizadas, filtre por método de pagamento ou status pendente (fiado).
             </DialogDescription>
           </div>
-          <Button
-            size="sm"
-            onClick={handleExportCSV}
-            className="bg-brand-purple text-brand-purple-foreground hover:bg-brand-purple/90 gap-1.5 h-9 rounded-xl shrink-0 cursor-pointer"
-          >
-            <Download className="h-4 w-4" />
-            <span>Exportar CSV</span>
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={handleExportCSV}
+              variant="outline"
+              className="border-brand-purple text-brand-purple hover:bg-brand-purple/10 gap-1.5 h-9 rounded-xl font-bold cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Exportar CSV</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleExportPDF}
+              className="bg-brand-purple text-brand-purple-foreground hover:bg-brand-purple/90 gap-1.5 h-9 rounded-xl font-bold cursor-pointer shadow-sm"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Baixar PDF</span>
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="flex flex-col gap-3 shrink-0">
