@@ -103,6 +103,7 @@ export const sales = pgTable('sales', {
     .default('0.00'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   saleGroupId: text('saleGroupId'),
+  deletedAt: timestamp('deletedAt'),
 }, (table) => [
   index('sales_user_id_idx').on(table.userId),
   index('sales_created_at_idx').on(table.createdAt),

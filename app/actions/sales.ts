@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { products, sales } from '@/lib/db/schema'
-import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { PAYMENT_METHODS } from '@/lib/constants'
@@ -328,6 +328,9 @@ export async function registerReturn(input: {
 export async function getTodaySummary() {
   try {
     const userId = await getUserId()
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+
     const todayMovements = await db
       .select({
         id: sales.id,
@@ -340,7 +343,13 @@ export async function getTodaySummary() {
         saleGroupId: sales.saleGroupId,
       })
       .from(sales)
-      .where(eq(sales.userId, userId))
+      .where(
+        and(
+          eq(sales.userId, userId),
+          gte(sales.createdAt, startOfDay),
+          isNull(sales.deletedAt)
+        )
+      )
 
     const uniqueSaleGroups = new Set<string>()
     let totalSales = 0
@@ -427,7 +436,7 @@ export async function getRecentMovements(limit = 8) {
     return await db
       .select()
       .from(sales)
-      .where(eq(sales.userId, userId))
+      .where(and(eq(sales.userId, userId), isNull(sales.deletedAt)))
       .orderBy(desc(sales.createdAt))
       .limit(limit)
   } catch (err) {
@@ -444,6 +453,48 @@ export async function getRecentMovements(limit = 8) {
         level: 'warn',
         service_name: 'sales-service',
         message: 'Returning empty movements list because database query failed',
+        trace_id: internalLog.trace_id,
+        error_details: internalLog,
+      })
+    )
+    return []
+  }
+}
+
+/**
+ * Retrieves all sales (type='sale') for the authenticated user, excluding soft-deleted records.
+ * Used for the full sales history dialog.
+ *
+ * @returns A promise resolving to an array of all sale movements.
+ */
+export async function getAllSales() {
+  try {
+    const userId = await getUserId()
+    return await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.userId, userId),
+          eq(sales.type, 'sale'),
+          isNull(sales.deletedAt)
+        )
+      )
+      .orderBy(desc(sales.createdAt))
+  } catch (err) {
+    const internalLog = {
+      type: 'https://errors.amofit.com.br/database-connection-error',
+      title: 'Database connection failed',
+      detail: 'Falling back to empty sales list during query failure',
+      instance: '/app/actions/sales/getAllSales',
+      trace_id: Math.random().toString(36).substring(2, 15),
+      stack_trace: err instanceof Error ? err.stack : undefined,
+    }
+    console.error(
+      JSON.stringify({
+        level: 'warn',
+        service_name: 'sales-service',
+        message: 'Returning empty sales list because database query failed',
         trace_id: internalLog.trace_id,
         error_details: internalLog,
       })
@@ -503,7 +554,7 @@ export async function undoMovement(movementId: number): Promise<{
       const [movement] = await tx
         .select()
         .from(sales)
-        .where(and(eq(sales.id, movementId), eq(sales.userId, userId)))
+        .where(and(eq(sales.id, movementId), eq(sales.userId, userId), isNull(sales.deletedAt)))
 
       if (!movement) {
         throw new Error('MOVEMENT_NOT_FOUND')
@@ -513,7 +564,7 @@ export async function undoMovement(movementId: number): Promise<{
         ? await tx
             .select()
             .from(sales)
-            .where(and(eq(sales.saleGroupId, movement.saleGroupId), eq(sales.userId, userId)))
+            .where(and(eq(sales.saleGroupId, movement.saleGroupId), eq(sales.userId, userId), isNull(sales.deletedAt)))
         : [movement]
 
       for (const mov of movementsToUndo) {
@@ -539,7 +590,10 @@ export async function undoMovement(movementId: number): Promise<{
           }
         }
 
-        await tx.delete(sales).where(eq(sales.id, mov.id))
+        await tx
+          .update(sales)
+          .set({ deletedAt: new Date() })
+          .where(eq(sales.id, mov.id))
       }
       return { success: true }
     })
@@ -636,8 +690,15 @@ export async function clearTodaySales(): Promise<{
     startOfDay.setHours(0, 0, 0, 0)
 
     await db
-      .delete(sales)
-      .where(and(eq(sales.userId, userId), gte(sales.createdAt, startOfDay)))
+      .update(sales)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(sales.userId, userId),
+          gte(sales.createdAt, startOfDay),
+          isNull(sales.deletedAt)
+        )
+      )
 
     revalidatePath('/')
     return { success: true }
@@ -722,7 +783,7 @@ export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
     const [sale] = await db
       .select()
       .from(sales)
-      .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
+      .where(and(eq(sales.id, saleId), eq(sales.userId, userId), isNull(sales.deletedAt)))
 
     if (!sale) {
       return {
@@ -970,7 +1031,7 @@ export async function updateSale(
       const [sale] = await tx
         .select()
         .from(sales)
-        .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
+        .where(and(eq(sales.id, saleId), eq(sales.userId, userId), isNull(sales.deletedAt)))
 
       if (!sale) {
         throw new Error('SALE_NOT_FOUND')

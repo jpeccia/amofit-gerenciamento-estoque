@@ -58,11 +58,13 @@ export function Dashboard({
   products,
   summary,
   movements,
+  allSales,
 }: {
   userName: string
   products: Product[]
   summary: Summary
   movements: Movement[]
+  allSales: Movement[]
 }) {
   const router = useRouter()
   const [saleOpen, setSaleOpen] = useState(false)
@@ -396,7 +398,7 @@ export function Dashboard({
 
         <RecentMovements movements={movements} />
 
-        <Insights products={products} movements={movements} />
+        <Insights products={products} movements={allSales} />
 
         <div className="mt-12 flex justify-center">
           <Button
@@ -432,7 +434,7 @@ export function Dashboard({
       <SalesHistoryDialog
         open={salesHistoryOpen}
         onOpenChange={setSalesHistoryOpen}
-        movements={movements}
+        movements={allSales}
         onMarkSaleAsPaid={handleMarkSaleAsPaid}
         onUndoMovement={handleUndoMovement}
         onEditSale={(sale) => {

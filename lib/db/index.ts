@@ -10,6 +10,9 @@ export const pool = new Pool({
 pool
   .query('ALTER TABLE sales ADD COLUMN IF NOT EXISTS "saleGroupId" TEXT;')
   .then(() => {
+    return pool.query('ALTER TABLE sales ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;')
+  })
+  .then(() => {
     return pool.query(`
       WITH grouped_sales AS (
         SELECT 
