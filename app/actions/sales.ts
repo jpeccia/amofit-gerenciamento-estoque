@@ -328,8 +328,6 @@ export async function registerReturn(input: {
 export async function getTodaySummary() {
   try {
     const userId = await getUserId()
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
 
     const todayMovements = await db
       .select({
@@ -346,7 +344,6 @@ export async function getTodaySummary() {
       .where(
         and(
           eq(sales.userId, userId),
-          gte(sales.createdAt, startOfDay),
           isNull(sales.deletedAt)
         )
       )
