@@ -18,7 +18,7 @@ import {
   CreditCard,
   Layers
 } from 'lucide-react'
-import { formatBRL, type Movement, type Product } from '@/lib/constants'
+import { formatBRL, formatDateTime, type Movement, type Product } from '@/lib/constants'
 
 /**
  * Calculates and displays store insights strictly using real database metrics.
@@ -511,8 +511,16 @@ export function Insights({
                       <p className="text-xs text-muted-foreground font-semibold mt-0.5">
                         {sale.productName} ({sale.size}) • {sale.quantity} unid.
                       </p>
+                      <div className="flex flex-col text-[10px] text-muted-foreground mt-1 gap-0.5">
+                        <span>Vendido em: <strong className="text-foreground">{formatDateTime(sale.createdAt)}</strong></span>
+                        {sale.paidAt && (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            Última amortização: <strong>{formatDateTime(sale.paidAt)}</strong> ({formatBRL(Number(sale.amountPaid || 0))} p/ agora)
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0 ml-3">
                       <p className="font-bold text-amber-600 dark:text-amber-400">{formatBRL(due)}</p>
                       <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">restantes</p>
                     </div>

@@ -299,8 +299,15 @@ export function SalesHistoryDialog({
                   const paidNum = Number(m.amountPaid || 0)
                   return (
                     <tr key={m.id} className="hover:bg-muted/15 transition-colors">
-                      <td className="py-3 px-4 text-xs text-muted-foreground truncate">
-                        {formatTime(m.createdAt)}
+                      <td className="py-3 px-4 text-xs">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-foreground">
+                            {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(m.createdAt))}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            às {new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(m.createdAt))}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 px-3 font-semibold text-brand-purple truncate">
                         {m.customerName || '—'}
@@ -338,10 +345,19 @@ export function SalesHistoryDialog({
                           <span className="font-bold text-foreground">
                             {formatBRL(totalNum)}
                           </span>
-                          {isPendingPayment && paidNum > 0 && (
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                              Pago: {formatBRL(paidNum)}
-                            </span>
+                          {paidNum > 0 && (
+                            <div className="flex flex-col text-[10px] leading-tight mt-0.5">
+                              {isPendingPayment && (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  Amortizado: {formatBRL(paidNum)}
+                                </span>
+                              )}
+                              {m.paidAt && (
+                                <span className="text-[9px] text-muted-foreground font-normal">
+                                  Pagto em: {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(m.paidAt))}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>

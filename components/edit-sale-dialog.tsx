@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PAYMENT_METHODS, formatBRL, type Movement, type Product } from '@/lib/constants'
+import { PAYMENT_METHODS, formatBRL, formatDateTime, type Movement, type Product } from '@/lib/constants'
 
 /**
  * Dialog component to edit properties of an existing sale.
@@ -203,6 +203,22 @@ export function EditSaleDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
+          {/* TIMESTAMP BANNER */}
+          {sale && (
+            <div className="flex flex-col gap-1 p-2.5 bg-brand-purple/5 border border-brand-purple/15 rounded-xl text-xs">
+              <div className="flex justify-between items-center text-foreground">
+                <span className="font-bold text-brand-purple">📅 Data da Venda:</span>
+                <span className="font-semibold">{formatDateTime(sale.createdAt)}</span>
+              </div>
+              {sale.paidAt && (
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 border-t border-brand-purple/10 pt-1 mt-0.5">
+                  <span className="font-bold">💳 Último Pagamento:</span>
+                  <span className="font-semibold">{formatDateTime(sale.paidAt)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* LIST OF SOLD PRODUCTS (READ-ONLY) */}
           <div className="flex flex-col gap-2.5 p-3.5 bg-muted/40 border border-border/80 rounded-xl">
             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">

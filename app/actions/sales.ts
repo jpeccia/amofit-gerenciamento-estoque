@@ -220,6 +220,7 @@ async function getUserId() {
           customerName: input.customerName || null,
           sku,
           amountPaid: amountPaid.toFixed(2),
+          paidAt: amountPaid > 0 ? new Date() : null,
           type: 'sale',
           saleGroupId,
         })
@@ -824,6 +825,7 @@ export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
               .set({
                 paymentStatus: itemStatus,
                 amountPaid: itemPaid.toFixed(2),
+                paidAt: itemPaid > 0 ? new Date() : item.paidAt,
               })
               .where(eq(sales.id, item.id))
           }
@@ -836,6 +838,7 @@ export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
               .set({
                 paymentStatus: 'paid',
                 amountPaid: Number(item.total).toFixed(2),
+                paidAt: new Date(),
               })
               .where(eq(sales.id, item.id))
           }
@@ -864,6 +867,7 @@ export async function markSaleAsPaid(saleId: number, amount?: number): Promise<{
         .set({
           paymentStatus: newStatus,
           amountPaid: newAmountPaid.toFixed(2),
+          paidAt: newAmountPaid > 0 ? new Date() : null,
         })
         .where(and(eq(sales.id, saleId), eq(sales.userId, userId)))
         .returning()
@@ -1128,6 +1132,7 @@ export async function updateSale(
           .set({
             paymentStatus: itemStatus,
             amountPaid: itemPaid.toFixed(2),
+            paidAt: itemPaid > 0 ? new Date() : dbItem.paidAt,
           })
           .where(eq(sales.id, dbItem.id))
       }

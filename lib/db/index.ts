@@ -13,6 +13,9 @@ pool
     return pool.query('ALTER TABLE sales ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;')
   })
   .then(() => {
+    return pool.query('ALTER TABLE sales ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMP;')
+  })
+  .then(() => {
     return pool.query(`
       WITH grouped_sales AS (
         SELECT 

@@ -46,6 +46,7 @@ export type Movement = {
   amountPaid?: string | null
   saleGroupId?: string | null
   deletedAt?: Date | null
+  paidAt?: Date | null
   createdAt: Date
 }
 
@@ -70,4 +71,41 @@ export function formatBRL(value: number): string {
     style: 'currency',
     currency: 'BRL',
   }).format(value)
+}
+
+/**
+ * Formats a Date object or string to a full Brazilian date and time string (e.g. 10/08/2026 às 16:16).
+ */
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return '—'
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return '—'
+  const dateStr = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(d)
+  const timeStr = new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+  return `${dateStr} às ${timeStr}`
+}
+
+/**
+ * Formats a Date object or string to a compact date and time string (e.g. 10/08 às 16:16).
+ */
+export function formatShortDateTime(date: Date | string | null | undefined): string {
+  if (!date) return '—'
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return '—'
+  const dateStr = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+  }).format(d)
+  const timeStr = new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+  return `${dateStr} às ${timeStr}`
 }

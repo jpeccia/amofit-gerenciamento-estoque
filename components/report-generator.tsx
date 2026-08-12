@@ -109,7 +109,7 @@ export function generateFullCSV(
 
   addLine(['═══ HISTÓRICO COMPLETO DE VENDAS ═══'])
   addLine([
-    'Data', 'Cliente', 'Ref / SKU', 'Produto', 'Categoria',
+    'Data da Venda', 'Data do Ultimo Pagamento', 'Cliente', 'Ref / SKU', 'Produto', 'Categoria',
     'Tamanho', 'Cor', 'Qtd', 'Valor Unit. (R$)', 'Total (R$)',
     'Valor Pago (R$)', 'Valor Pendente (R$)', 'Método', 'Parcelas', 'Status',
   ])
@@ -119,6 +119,7 @@ export function generateFullCSV(
     const paid = Number(item.amountPaid || 0)
     addLine([
       formatFullDate(item.createdAt),
+      item.paidAt ? formatFullDate(item.paidAt) : '—',
       item.customerName || '—',
       item.sku || '—',
       item.productName,
@@ -137,17 +138,17 @@ export function generateFullCSV(
   }
 
   addLine([
-    'TOTAL', '', '', '', '', '', '', '',
-    '', `R$ ${csvMoney(totalRevenue)}`,
+    'TOTAL', '', '', '', '', '', '', '', '',
+    `R$ ${csvMoney(totalRevenue)}`,
     `R$ ${csvMoney(totalReceived)}`,
     `R$ ${csvMoney(totalPending)}`,
-    '', '', '',
+    '', '', '', '',
   ])
 
   addEmpty()
 
   addLine(['═══ FIADOS PENDENTES (A RECEBER) ═══'])
-  addLine(['Cliente', 'Produto', 'Tamanho', 'Data', 'Total (R$)', 'Pago (R$)', 'Restante (R$)'])
+  addLine(['Cliente', 'Produto', 'Tamanho', 'Data da Venda', 'Data Ultima Amortizacao', 'Total (R$)', 'Pago (R$)', 'Restante (R$)'])
 
   const pendingSales = salesItems.filter(s => s.paymentStatus === 'pending')
   for (const s of pendingSales) {
@@ -157,7 +158,8 @@ export function generateFullCSV(
       s.customerName || '—',
       s.productName,
       s.size,
-      formatShortDate(s.createdAt),
+      formatFullDate(s.createdAt),
+      s.paidAt ? formatFullDate(s.paidAt) : '—',
       csvMoney(total),
       csvMoney(paid),
       csvMoney(total - paid),
@@ -165,7 +167,7 @@ export function generateFullCSV(
   }
 
   const pendingTotal = pendingSales.reduce((s, m) => s + Number(m.total) - Number(m.amountPaid || 0), 0)
-  addLine(['TOTAL A RECEBER', '', '', '', '', '', `R$ ${csvMoney(pendingTotal)}`])
+  addLine(['TOTAL A RECEBER', '', '', '', '', '', '', `R$ ${csvMoney(pendingTotal)}`])
 
   addEmpty()
 
