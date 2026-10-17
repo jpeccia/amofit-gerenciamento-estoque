@@ -17,7 +17,9 @@ import {
   BarChart3,
   CreditCard,
   Layers,
-  Share2
+  Share2,
+  Coins,
+  BadgePercent,
 } from 'lucide-react'
 import { formatBRL, formatDateTime, type Movement, type Product } from '@/lib/constants'
 
@@ -87,6 +89,54 @@ export function Insights({
   const totalCapital = useMemo(() => {
     return products.reduce((sum, p) => sum + Number(p.price) * p.quantity, 0)
   }, [products])
+
+  const totalStockCost = useMemo(() => {
+    return products.reduce(
+      (sum, p) => sum + (p.costPrice ? Number(p.costPrice) * p.quantity : 0),
+      0
+    )
+  }, [products])
+
+  const financialProfit = useMemo(() => {
+    let evaluatedRevenue = 0
+    let evaluatedCost = 0
+    let countWithCost = 0
+
+    const productCostMap = new Map<number, number>()
+    for (const p of products) {
+      if (p.costPrice) {
+        productCostMap.set(p.id, Number(p.costPrice))
+      }
+    }
+
+    for (const s of salesOnly) {
+      const rev = Number(s.total)
+      let unitC: number | null = null
+      if (s.unitCost) {
+        unitC = Number(s.unitCost)
+      } else if (s.productId && productCostMap.has(s.productId)) {
+        unitC = productCostMap.get(s.productId)!
+      }
+
+      if (unitC !== null && !Number.isNaN(unitC)) {
+        evaluatedRevenue += rev
+        evaluatedCost += unitC * s.quantity
+        countWithCost++
+      }
+    }
+
+    const estimatedProfit = evaluatedRevenue - evaluatedCost
+    const marginPct = evaluatedRevenue > 0 ? (estimatedProfit / evaluatedRevenue) * 100 : 0
+
+    return {
+      evaluatedRevenue,
+      evaluatedCost,
+      estimatedProfit,
+      marginPct,
+      countWithCost,
+      hasCostData: countWithCost > 0,
+    }
+  }, [salesOnly, products])
 
   const pendingDebts = useMemo(() => {
     const pendingSales = salesOnly.filter((s) => s.paymentStatus === 'pending')
@@ -356,6 +406,94 @@ export function Insights({
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Financial Profit & Margins Card */}
+          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-sm font-bold text-foreground">
+                    Desempenho Financeiro & Margem Real
+                  </h3>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Calculado a partir do Preço de Custo cadastrado nas peças
+                  </p>
+                </div>
+              </div>
+              {financialProfit.hasCostData ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 px-2.5 py-1 rounded-full">
+                    Margem Média: {financialProfit.marginPct.toFixed(0)}%
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {financialProfit.hasCostData ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50">
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Faturamento Avaliado
+                  </span>
+                  <p className="text-base font-extrabold text-foreground">
+                    {formatBRL(financialProfit.evaluatedRevenue)}
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    {financialProfit.countWithCost} itens vendidos com custo
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50">
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Custo das Peças (CMV)
+                  </span>
+                  <p className="text-base font-extrabold text-muted-foreground">
+                    {formatBRL(financialProfit.evaluatedCost)}
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    Custo de reposição física
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block mb-1">
+                    Lucro Bruto Estimado
+                  </span>
+                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                    +{formatBRL(financialProfit.estimatedProfit)}
+                  </p>
+                  <span className="text-[11px] font-medium text-emerald-700/80 dark:text-emerald-300/80">
+                    Retorno líquido sobre vendas
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-muted/30 border border-dashed border-border text-center sm:text-left">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    Preços de custo ainda não configurados
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-lg">
+                    Adicione o <strong>Preço de Custo (R$)</strong> ao editar ou cadastrar produtos no estoque para ver seu lucro bruto e margem real calculados automaticamente aqui.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {totalStockCost > 0 && (
+              <div className="mt-4 pt-3 border-t border-border/50 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  Investimento total em custo no estoque físico atual: <strong className="text-foreground">{formatBRL(totalStockCost)}</strong>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  Potencial de lucro no estoque: +{formatBRL(Math.max(0, totalCapital - totalStockCost))}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Payment Preferences */}

@@ -41,6 +41,7 @@ export function StockList({
     size: string
     quantity: number
     price: number
+    costPrice?: number | null
     colors?: string
     sku?: string
   }) => Promise<void>
@@ -50,12 +51,17 @@ export function StockList({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos')
   const [selectedSize, setSelectedSize] = useState<string>('Todos')
+  const [onlyMultiColor, setOnlyMultiColor] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
+  const multiColorCount = useMemo(() => {
+    return products.filter((p) => p.colors && p.colors.includes(',')).length
+  }, [products])
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedSize])
+  }, [searchQuery, selectedCategory, selectedSize, onlyMultiColor])
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -69,9 +75,11 @@ export function StockList({
       const matchesCategory =
         selectedCategory === 'Todos' || product.category === selectedCategory
       const matchesSize = selectedSize === 'Todos' || product.size === selectedSize
-      return matchesSearch && matchesCategory && matchesSize
+      const matchesMultiColor =
+        !onlyMultiColor || (!!product.colors && product.colors.includes(','))
+      return matchesSearch && matchesCategory && matchesSize && matchesMultiColor
     })
-  }, [products, searchQuery, selectedCategory, selectedSize])
+  }, [products, searchQuery, selectedCategory, selectedSize, onlyMultiColor])
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
 
@@ -87,10 +95,18 @@ export function StockList({
     )
   }, [products])
 
+  const totalStockCost = useMemo(() => {
+    return products.reduce(
+      (acc, p) => acc + (p.costPrice ? Number(p.costPrice) * p.quantity : 0),
+      0
+    )
+  }, [products])
+
   function handleClearFilters() {
     setSearchQuery('')
     setSelectedCategory('Todos')
     setSelectedSize('Todos')
+    setOnlyMultiColor(false)
     setCurrentPage(1)
   }
 
@@ -124,8 +140,13 @@ export function StockList({
             {products.length === 1 ? 'item' : 'itens'}
           </span>
           <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full shrink-0">
-            Total: {formatBRL(totalStockValue)}
+            Total Venda: {formatBRL(totalStockValue)}
           </span>
+          {totalStockCost > 0 && (
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 px-2.5 py-0.5 rounded-full shrink-0">
+              Custo: {formatBRL(totalStockCost)}
+            </span>
+          )}
         </h2>
         <div className="flex items-center gap-1.5">
           {products.some((p) => p.quantity < 3) && (
@@ -233,6 +254,39 @@ export function StockList({
                 ))}
               </div>
             </div>
+
+            {multiColorCount > 0 && (
+              <div className="flex flex-col gap-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-brand-purple/70 uppercase tracking-wider">
+                    Revisão Gradual
+                  </span>
+                  {onlyMultiColor && (
+                    <button
+                      type="button"
+                      onClick={() => setOnlyMultiColor(false)}
+                      className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+                    >
+                      Ver todas as peças
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2 flex-wrap items-center">
+                  <Button
+                    size="sm"
+                    variant={onlyMultiColor ? 'default' : 'outline'}
+                    className={`rounded-full h-8 px-3.5 text-xs font-semibold transition-all cursor-pointer ${
+                      onlyMultiColor
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-sm'
+                        : 'border-purple-300 text-purple-700 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                    }`}
+                    onClick={() => setOnlyMultiColor(!onlyMultiColor)}
+                  >
+                    🎨 Peças com Cores Múltiplas ({multiColorCount})
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -386,12 +440,30 @@ const ProductCard = memo(function ProductCard({
             <>
               <span aria-hidden>•</span>
               <span className="text-xs">Cores: {product.colors}</span>
+              {product.colors.includes(',') && (
+                <span className="text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full inline-flex items-center">
+                  Múltiplas cores
+                </span>
+              )}
             </>
           )}
           <span aria-hidden>•</span>
-          <span className="font-medium text-foreground">
+          <span className="font-semibold text-foreground">
             {formatBRL(Number(product.price))}
           </span>
+          {product.costPrice && (
+            <>
+              <span aria-hidden>•</span>
+              <span className="text-xs text-muted-foreground">
+                Custo: {formatBRL(Number(product.costPrice))}
+              </span>
+              {Number(product.price) > 0 && (
+                <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
+                  {Math.round(((Number(product.price) - Number(product.costPrice)) / Number(product.price)) * 100)}% margem
+                </span>
+              )}
+            </>
+          )}
         </div>
         <p className="mt-1 text-xs">
           {product.quantity === 0 ? (

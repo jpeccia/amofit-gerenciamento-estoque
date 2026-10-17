@@ -21,6 +21,7 @@ export type Product = {
   size: string
   quantity: number
   price: string
+  costPrice?: string | null
   colors?: string | null
   sku?: string | null
   createdAt: Date
@@ -35,6 +36,7 @@ export type Movement = {
   size: string
   quantity: number
   unitPrice: string
+  unitCost?: string | null
   total: string
   paymentMethod: string
   type: string

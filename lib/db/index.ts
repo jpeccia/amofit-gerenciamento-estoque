@@ -16,6 +16,12 @@ pool
     return pool.query('ALTER TABLE sales ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMP;')
   })
   .then(() => {
+    return pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS "costPrice" NUMERIC(10, 2);')
+  })
+  .then(() => {
+    return pool.query('ALTER TABLE sales ADD COLUMN IF NOT EXISTS "unitCost" NUMERIC(10, 2);')
+  })
+  .then(() => {
     return pool.query(`
       WITH grouped_sales AS (
         SELECT 

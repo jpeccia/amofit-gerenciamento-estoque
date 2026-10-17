@@ -44,6 +44,7 @@ export function EditProductDialog({
       category: string
       size: string
       price: number
+      costPrice?: number | null
       colors?: string
       sku?: string
     }
@@ -54,6 +55,7 @@ export function EditProductDialog({
   const [category, setCategory] = useState<string>(CATEGORIES[0])
   const [size, setSize] = useState<string>('M')
   const [price, setPrice] = useState('')
+  const [costPrice, setCostPrice] = useState('')
   const [colors, setColors] = useState('')
   const [sku, setSku] = useState('')
 
@@ -63,6 +65,9 @@ export function EditProductDialog({
       setCategory(product.category)
       setSize(product.size)
       setPrice(Number(product.price).toString().replace('.', ','))
+      setCostPrice(
+        product.costPrice ? Number(product.costPrice).toString().replace('.', ',') : ''
+      )
       setColors(product.colors || '')
       setSku(product.sku || '')
     }
@@ -77,7 +82,12 @@ export function EditProductDialog({
       return toast.error('Informe o nome do produto')
     }
     if (Number.isNaN(priceNum) || priceNum < 0) {
-      return toast.error('Informe um preço válido')
+      return toast.error('Informe um preço de venda válido')
+    }
+
+    const costPriceNum = costPrice.trim() ? Number(costPrice.replace(',', '.')) : null
+    if (costPriceNum !== null && (Number.isNaN(costPriceNum) || costPriceNum < 0)) {
+      return toast.error('Informe um preço de custo válido')
     }
 
     startTransition(async () => {
@@ -87,6 +97,7 @@ export function EditProductDialog({
           category,
           size,
           price: priceNum,
+          costPrice: costPriceNum,
           colors: colors.trim() || undefined,
           sku: sku.trim() || undefined,
         })
@@ -156,27 +167,33 @@ export function EditProductDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-product-price">Preço (R$)</Label>
-            <Input
-              id="edit-product-price"
-              inputMode="decimal"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0,00"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-product-price">Preço Venda (R$)</Label>
+              <Input
+                id="edit-product-price"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-product-cost">Preço Custo (R$)</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Opcional</span>
+              </div>
+              <Input
+                id="edit-product-cost"
+                inputMode="decimal"
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-product-colors">Cores disponíveis</Label>
-              <Input
-                id="edit-product-colors"
-                value={colors}
-                onChange={(e) => setColors(e.target.value)}
-                placeholder="Ex: Preto, Azul"
-              />
-            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-product-sku">Referência / SKU</Label>
               <Input
@@ -184,6 +201,15 @@ export function EditProductDialog({
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
                 placeholder="Ex: LEG001"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-product-colors">Cores disponíveis</Label>
+              <Input
+                id="edit-product-colors"
+                value={colors}
+                onChange={(e) => setColors(e.target.value)}
+                placeholder="Ex: Preto, Azul"
               />
             </div>
           </div>

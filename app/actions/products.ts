@@ -44,12 +44,19 @@ export async function getProducts() {
   }
 }
 
+/**
+ * Creates a new product and records an initial restock movement if initial quantity > 0.
+ *
+ * @param input The product parameters including optional costPrice and SKU.
+ * @returns A promise resolving once the product is inserted.
+ */
 export async function createProduct(input: {
   name: string
   category: string
   size: string
   quantity: number
   price: number
+  costPrice?: number | null
   colors?: string
   sku?: string
 }) {
@@ -82,6 +89,18 @@ export async function createProduct(input: {
   ) {
     throw new Error('Preço do produto deve ser maior que zero')
   }
+  if (
+    input.costPrice !== undefined &&
+    input.costPrice !== null &&
+    (typeof input.costPrice !== 'number' || input.costPrice < 0 || Number.isNaN(input.costPrice))
+  ) {
+    throw new Error('Preço de custo inválido')
+  }
+
+  const costPriceVal =
+    input.costPrice !== undefined && input.costPrice !== null && !Number.isNaN(input.costPrice)
+      ? input.costPrice.toFixed(2)
+      : null
 
   const [newProd] = await db
     .insert(products)
@@ -92,6 +111,7 @@ export async function createProduct(input: {
       size: input.size,
       quantity: Math.max(0, Math.floor(input.quantity)),
       price: input.price.toFixed(2),
+      costPrice: costPriceVal,
       colors: input.colors ? input.colors.trim() : null,
       sku: input.sku ? input.sku.trim() : null,
     })
@@ -106,6 +126,7 @@ export async function createProduct(input: {
       size: newProd.size,
       quantity: newProd.quantity,
       unitPrice: newProd.price,
+      unitCost: newProd.costPrice || null,
       total: '0.00',
       paymentMethod: '—',
       type: 'restock',
@@ -116,6 +137,12 @@ export async function createProduct(input: {
   revalidatePath('/')
 }
 
+/**
+ * Adjusts product inventory count by a delta and registers the corresponding audit movement.
+ *
+ * @param id The product database ID.
+ * @param delta The delta change to apply to quantity.
+ */
 export async function adjustStock(id: number, delta: number) {
   const userId = await getUserId()
 
@@ -144,6 +171,7 @@ export async function adjustStock(id: number, delta: number) {
         size: product.size,
         quantity: delta,
         unitPrice: product.price,
+        unitCost: product.costPrice || null,
         total: '0.00',
         paymentMethod: '—',
         type: 'restock',
@@ -160,6 +188,7 @@ export async function adjustStock(id: number, delta: number) {
           size: product.size,
           quantity: removedQty,
           unitPrice: product.price,
+          unitCost: product.costPrice || null,
           total: '0.00',
           paymentMethod: '—',
           type: 'adjustment',
@@ -172,6 +201,11 @@ export async function adjustStock(id: number, delta: number) {
   revalidatePath('/')
 }
 
+/**
+ * Deletes a product from the database for the authenticated user.
+ *
+ * @param id The product database ID.
+ */
 export async function deleteProduct(id: number) {
   const userId = await getUserId()
   await db
@@ -184,7 +218,7 @@ export async function deleteProduct(id: number) {
  * Updates a product's properties by its ID.
  *
  * @param id The product database ID.
- * @param input The object containing new property values.
+ * @param input The object containing new property values including optional costPrice.
  */
 export async function updateProduct(
   id: number,
@@ -193,6 +227,7 @@ export async function updateProduct(
     category: string
     size: string
     price: number
+    costPrice?: number | null
     colors?: string
     sku?: string
   }
@@ -219,6 +254,18 @@ export async function updateProduct(
   ) {
     throw new Error('Preço do produto deve ser maior que zero')
   }
+  if (
+    input.costPrice !== undefined &&
+    input.costPrice !== null &&
+    (typeof input.costPrice !== 'number' || input.costPrice < 0 || Number.isNaN(input.costPrice))
+  ) {
+    throw new Error('Preço de custo inválido')
+  }
+
+  const costPriceVal =
+    input.costPrice !== undefined && input.costPrice !== null && !Number.isNaN(input.costPrice)
+      ? input.costPrice.toFixed(2)
+      : null
 
   await db
     .update(products)
@@ -227,6 +274,7 @@ export async function updateProduct(
       category: input.category,
       size: input.size,
       price: input.price.toFixed(2),
+      costPrice: costPriceVal,
       colors: input.colors ? input.colors.trim() : null,
       sku: input.sku ? input.sku.trim() : null,
     })

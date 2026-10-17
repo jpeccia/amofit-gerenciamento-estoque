@@ -164,6 +164,7 @@ async function getUserId() {
         let size = item.size || 'M'
         let unitPrice = item.price || 0
         let sku = item.sku || null
+        let unitCost: string | null = null
 
         if (!isCustom) {
           const [product] = await tx
@@ -182,6 +183,7 @@ async function getUserId() {
           size = product.size
           unitPrice = Number(product.price)
           sku = product.sku || null
+          unitCost = product.costPrice || null
 
           const updated = await tx
             .update(products)
@@ -212,6 +214,7 @@ async function getUserId() {
           size,
           quantity: qty,
           unitPrice: unitPrice.toFixed(2),
+          unitCost,
           total: total.toFixed(2),
           paymentMethod: input.paymentMethod,
           color: item.color || null,
@@ -317,6 +320,7 @@ export async function registerReturn(input: {
       size: product.size,
       quantity: qty,
       unitPrice: Number(product.price).toFixed(2),
+      unitCost: product.costPrice || null,
       total: '0.00',
       paymentMethod: '—',
       type: 'return',

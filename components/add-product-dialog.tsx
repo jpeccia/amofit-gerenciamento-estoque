@@ -41,6 +41,7 @@ export function AddProductDialog({
     size: string
     quantity: number
     price: number
+    costPrice?: number | null
     colors?: string
     sku?: string
   }) => Promise<void>
@@ -51,6 +52,7 @@ export function AddProductDialog({
   const [size, setSize] = useState<string>('M')
   const [quantity, setQuantity] = useState('1')
   const [price, setPrice] = useState('')
+  const [costPrice, setCostPrice] = useState('')
   const [colors, setColors] = useState('')
   const [sku, setSku] = useState('')
 
@@ -60,6 +62,7 @@ export function AddProductDialog({
     setSize('M')
     setQuantity('1')
     setPrice('')
+    setCostPrice('')
     setColors('')
     setSku('')
   }
@@ -71,7 +74,12 @@ export function AddProductDialog({
       return toast.error('Informe o nome do produto')
     }
     if (Number.isNaN(priceNum) || priceNum < 0) {
-      return toast.error('Informe um preço válido')
+      return toast.error('Informe um preço de venda válido')
+    }
+
+    const costPriceNum = costPrice.trim() ? Number(costPrice.replace(',', '.')) : null
+    if (costPriceNum !== null && (Number.isNaN(costPriceNum) || costPriceNum < 0)) {
+      return toast.error('Informe um preço de custo válido')
     }
 
     startTransition(async () => {
@@ -82,6 +90,7 @@ export function AddProductDialog({
           size,
           quantity: Number(quantity) || 0,
           price: priceNum,
+          costPrice: costPriceNum,
           colors: colors.trim() || undefined,
           sku: sku.trim() || undefined,
         })
@@ -165,7 +174,7 @@ export function AddProductDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="product-price">Preço (R$)</Label>
+              <Label htmlFor="product-price">Preço Venda (R$)</Label>
               <Input
                 id="product-price"
                 inputMode="decimal"
@@ -178,12 +187,16 @@ export function AddProductDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="product-colors">Cores disponíveis</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="product-cost">Preço Custo (R$)</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Opcional</span>
+              </div>
               <Input
-                id="product-colors"
-                value={colors}
-                onChange={(e) => setColors(e.target.value)}
-                placeholder="Ex: Preto, Azul"
+                id="product-cost"
+                inputMode="decimal"
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
+                placeholder="0,00"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -195,6 +208,16 @@ export function AddProductDialog({
                 placeholder="Ex: LEG001"
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="product-colors">Cores disponíveis</Label>
+            <Input
+              id="product-colors"
+              value={colors}
+              onChange={(e) => setColors(e.target.value)}
+              placeholder="Ex: Preto (ou Preto, Marrom)"
+            />
           </div>
 
           <DialogFooter className="mt-2">

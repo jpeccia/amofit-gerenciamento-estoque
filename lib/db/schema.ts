@@ -72,6 +72,7 @@ export const products = pgTable('products', {
   size: text('size').notNull(),
   quantity: integer('quantity').notNull().default(0),
   price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
+  costPrice: numeric('costPrice', { precision: 10, scale: 2 }),
   colors: text('colors'),
   sku: text('sku'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
@@ -90,6 +91,7 @@ export const sales = pgTable('sales', {
   unitPrice: numeric('unitPrice', { precision: 10, scale: 2 })
     .notNull()
     .default('0'),
+  unitCost: numeric('unitCost', { precision: 10, scale: 2 }),
   total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
   paymentMethod: text('paymentMethod').notNull(),
   type: text('type').notNull().default('sale'),

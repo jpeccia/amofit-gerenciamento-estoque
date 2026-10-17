@@ -91,7 +91,9 @@ export function Dashboard({
     size: string
     quantity: number
     price: number
+    costPrice?: number | null
     colors?: string
+    sku?: string
   }) => {
     try {
       await createProduct(input)
@@ -126,7 +128,7 @@ export function Dashboard({
    * Updates a product's details both in the backend database and local state/storage.
    *
    * @param id The product database ID.
-   * @param input The updated values including name, category, size, price, and optional colors.
+   * @param input The updated values including name, category, size, price, and optional costPrice.
    */
   const handleUpdateProduct = async (
     id: number,
@@ -135,7 +137,9 @@ export function Dashboard({
       category: string
       size: string
       price: number
+      costPrice?: number | null
       colors?: string
+      sku?: string
     }
   ) => {
     try {

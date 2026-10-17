@@ -41,12 +41,17 @@ export function ProductsListDialog({
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [sizeFilter, setSizeFilter] = useState<string>('all')
+  const [onlyMultiColor, setOnlyMultiColor] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
+  const multiColorCount = useMemo(() => {
+    return products.filter((p) => p.colors && p.colors.includes(',')).length
+  }, [products])
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, categoryFilter, sizeFilter])
+  }, [search, categoryFilter, sizeFilter, onlyMultiColor])
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -56,9 +61,11 @@ export function ProductsListDialog({
       const matchesCategory =
         categoryFilter === 'all' || p.category === categoryFilter
       const matchesSize = sizeFilter === 'all' || p.size === sizeFilter
-      return matchesSearch && matchesCategory && matchesSize
+      const matchesMultiColor =
+        !onlyMultiColor || (!!p.colors && p.colors.includes(','))
+      return matchesSearch && matchesCategory && matchesSize && matchesMultiColor
     })
-  }, [products, search, categoryFilter, sizeFilter])
+  }, [products, search, categoryFilter, sizeFilter, onlyMultiColor])
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
 
@@ -97,20 +104,32 @@ export function ProductsListDialog({
       'Tamanho',
       'Cores',
       'Estoque',
-      'Preço (R$)',
-      'Valor Total em Estoque (R$)'
+      'Preço de Venda (R$)',
+      'Preço de Custo (R$)',
+      'Margem Estimada (%)',
+      'Valor Total em Estoque (R$)',
     ]
 
-    const rows = filteredProducts.map((p) => [
-      p.sku || '—',
-      p.name,
-      p.category,
-      p.size,
-      p.colors || '—',
-      p.quantity,
-      Number(p.price).toFixed(2),
-      (Number(p.price) * p.quantity).toFixed(2)
-    ])
+    const rows = filteredProducts.map((p) => {
+      const priceNum = Number(p.price)
+      const costNum = p.costPrice ? Number(p.costPrice) : null
+      const margin =
+        costNum !== null && priceNum > 0
+          ? `${Math.round(((priceNum - costNum) / priceNum) * 100)}%`
+          : '—'
+      return [
+        p.sku || '—',
+        p.name,
+        p.category,
+        p.size,
+        p.colors || '—',
+        p.quantity,
+        priceNum.toFixed(2),
+        costNum !== null ? costNum.toFixed(2) : '—',
+        margin,
+        (priceNum * p.quantity).toFixed(2),
+      ]
+    })
 
     const csvContent = [
       headers.join(';'),
@@ -121,7 +140,7 @@ export function ProductsListDialog({
             return `"${str}"`
           })
           .join(';')
-      )
+      ),
     ].join('\n')
 
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -166,8 +185,8 @@ export function ProductsListDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[130px] flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Categoria
               </span>
@@ -185,7 +204,7 @@ export function ProductsListDialog({
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex-1 min-w-[110px] flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Tamanho
               </span>
@@ -202,6 +221,22 @@ export function ProductsListDialog({
                 ))}
               </select>
             </div>
+
+            {multiColorCount > 0 && (
+              <Button
+                size="sm"
+                type="button"
+                variant={onlyMultiColor ? 'default' : 'outline'}
+                onClick={() => setOnlyMultiColor(!onlyMultiColor)}
+                className={`h-8 text-xs font-semibold rounded-lg shrink-0 cursor-pointer ${
+                  onlyMultiColor
+                    ? 'bg-purple-600 text-white font-bold hover:bg-purple-700'
+                    : 'border-purple-300 text-purple-700 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                }`}
+              >
+                🎨 Cores Múltiplas ({multiColorCount})
+              </Button>
+            )}
           </div>
         </div>
 
@@ -213,8 +248,8 @@ export function ProductsListDialog({
                 <th className="py-3 px-2 w-[12%]">Categoria</th>
                 <th className="py-3 px-2 w-[10%] text-center">Tam</th>
                 <th className="py-3 px-3 w-[15%]">Cores</th>
-                <th className="py-3 px-3 w-[13%]">Preço</th>
-                <th className="py-3 px-4 w-[25%] text-center">Ajuste Estoque</th>
+                <th className="py-3 px-3 w-[15%]">Preço / Margem</th>
+                <th className="py-3 px-4 w-[23%] text-center">Ajuste Estoque</th>
                 <th className="py-3 px-4 w-[15%] text-right">Ações</th>
               </tr>
             </thead>
@@ -259,11 +294,30 @@ export function ProductsListDialog({
                           {p.size}
                         </Badge>
                       </td>
-                      <td className="py-3.5 px-3 text-xs text-muted-foreground truncate">
-                        {p.colors || '—'}
+                      <td className="py-3.5 px-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{p.colors || '—'}</span>
+                          {p.colors && p.colors.includes(',') && (
+                            <span className="text-[9px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 px-1.5 py-0.2 rounded-full shrink-0">
+                              Múltiplas
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-3 font-medium text-foreground">
-                        {formatBRL(Number(p.price))}
+                        <div className="flex flex-col">
+                          <span>{formatBRL(Number(p.price))}</span>
+                          {p.costPrice && (
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground flex-wrap">
+                              <span>Custo: {formatBRL(Number(p.costPrice))}</span>
+                              {Number(p.price) > 0 && (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                  ({Math.round(((Number(p.price) - Number(p.costPrice)) / Number(p.price)) * 100)}%)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center gap-2">
