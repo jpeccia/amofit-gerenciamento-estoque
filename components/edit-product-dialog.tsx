@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CATEGORIES, SIZES, type Product } from '@/lib/constants'
+import { PricingFormulaAssistant } from '@/components/pricing-formula-assistant'
 
 /**
  * Dialog component to edit properties of an existing product in the stock list.
@@ -169,16 +170,6 @@ export function EditProductDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-product-price">Preço Venda (R$)</Label>
-              <Input
-                id="edit-product-price"
-                inputMode="decimal"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0,00"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="edit-product-cost">Preço Custo (R$)</Label>
                 <span className="text-[10px] text-muted-foreground font-medium">Opcional</span>
@@ -191,7 +182,23 @@ export function EditProductDialog({
                 placeholder="0,00"
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-product-price">Preço Venda (R$)</Label>
+              <Input
+                id="edit-product-price"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
           </div>
+
+          <PricingFormulaAssistant
+            costPriceStr={costPrice}
+            onApplyPrice={setPrice}
+            currentPriceStr={price}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">

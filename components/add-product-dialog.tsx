@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CATEGORIES, SIZES } from '@/lib/constants'
+import { PricingFormulaAssistant } from '@/components/pricing-formula-assistant'
 
 /**
  * Dialog component to add a new product to the inventory.
@@ -174,13 +175,12 @@ export function AddProductDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="product-price">Preço Venda (R$)</Label>
+              <Label htmlFor="product-sku">Referência / SKU</Label>
               <Input
-                id="product-price"
-                inputMode="decimal"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0,00"
+                id="product-sku"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="Ex: LEG001"
               />
             </div>
           </div>
@@ -200,15 +200,22 @@ export function AddProductDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="product-sku">Referência / SKU</Label>
+              <Label htmlFor="product-price">Preço Venda (R$)</Label>
               <Input
-                id="product-sku"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="Ex: LEG001"
+                id="product-price"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0,00"
               />
             </div>
           </div>
+
+          <PricingFormulaAssistant
+            costPriceStr={costPrice}
+            onApplyPrice={setPrice}
+            currentPriceStr={price}
+          />
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="product-colors">Cores disponíveis</Label>
