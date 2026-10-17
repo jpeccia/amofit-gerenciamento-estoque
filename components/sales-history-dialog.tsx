@@ -197,7 +197,7 @@ export function SalesHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col gap-4 overflow-hidden">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] flex flex-col gap-4 overflow-hidden">
         <DialogHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <DialogTitle className="text-brand-purple">Histórico de Vendas</DialogTitle>
@@ -272,17 +272,17 @@ export function SalesHistoryDialog({
         </div>
 
         <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 rounded-xl border border-border bg-card">
-          <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
+          <table className="w-full text-left border-collapse min-w-[1060px]">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider font-bold">
-                <th className="py-3 px-4 w-[12%]">Data</th>
-                <th className="py-3 px-3 w-[14%]">Cliente</th>
-                <th className="py-3 px-4 w-[24%]">Produto</th>
-                <th className="py-3 px-2 w-[6%] text-center">Tam</th>
-                <th className="py-3 px-3 w-[13%]">Total</th>
-                <th className="py-3 px-3 w-[11%]">Método</th>
-                <th className="py-3 px-3 w-[11%] text-center">Status</th>
-                <th className="py-3 px-4 w-[17%] text-right">Ações</th>
+                <th className="py-3 px-4 w-[120px] shrink-0">Data</th>
+                <th className="py-3 px-3 w-[150px] shrink-0">Cliente</th>
+                <th className="py-3 px-4 min-w-[200px]">Produto / Itens</th>
+                <th className="py-3 px-2 w-[70px] text-center shrink-0">Tam</th>
+                <th className="py-3 px-3 w-[130px] shrink-0">Total</th>
+                <th className="py-3 px-3 w-[110px] shrink-0">Método</th>
+                <th className="py-3 px-3 w-[100px] text-center shrink-0">Status</th>
+                <th className="py-3 px-4 w-[240px] text-right shrink-0">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-sm">
@@ -299,7 +299,7 @@ export function SalesHistoryDialog({
                   const paidNum = Number(m.amountPaid || 0)
                   return (
                     <tr key={m.id} className="hover:bg-muted/15 transition-colors">
-                      <td className="py-3 px-4 text-xs">
+                      <td className="py-3 px-4 text-xs w-[120px] shrink-0">
                         <div className="flex flex-col">
                           <span className="font-semibold text-foreground">
                             {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(m.createdAt))}
@@ -309,10 +309,10 @@ export function SalesHistoryDialog({
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-semibold text-brand-purple truncate">
+                      <td className="py-3 px-3 font-semibold text-brand-purple truncate w-[150px] max-w-[150px]">
                         {m.customerName || '—'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 min-w-[200px]">
                         <div className="flex flex-col gap-0.5 max-w-full overflow-hidden">
                           {(m as any).items && (m as any).items.length > 1 ? (
                             ((m as any).items as Movement[]).map((item) => (
@@ -335,12 +335,12 @@ export function SalesHistoryDialog({
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-2 text-center">
-                        <Badge variant="outline" className="font-bold max-w-full truncate">
+                      <td className="py-3 px-2 text-center w-[70px] shrink-0">
+                        <Badge variant="outline" className="font-bold">
                           {m.size}
                         </Badge>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 w-[130px] shrink-0">
                         <div className="flex flex-col">
                           <span className="font-bold text-foreground">
                             {formatBRL(totalNum)}
@@ -361,29 +361,29 @@ export function SalesHistoryDialog({
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-xs text-muted-foreground truncate">
+                      <td className="py-3 px-3 text-xs text-muted-foreground truncate w-[110px] shrink-0">
                         {m.paymentMethod}
                         {m.installments && m.installments > 1 && ` (${m.installments}x)`}
                       </td>
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-3 px-3 text-center w-[100px] shrink-0 whitespace-nowrap">
                         {isPendingPayment ? (
                           <Badge
                             variant="outline"
-                            className="bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse font-bold text-[10px]"
+                            className="bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse font-bold text-[10px] px-2 py-0.5"
                           >
                             Pendente
                           </Badge>
                         ) : (
                           <Badge
                             variant="outline"
-                            className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold text-[10px]"
+                            className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold text-[10px] px-2 py-0.5"
                           >
                             Pago
                           </Badge>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-3 px-4 text-right w-[240px] shrink-0 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                           {isPendingPayment && (
                             <>
                               <Button
@@ -395,17 +395,17 @@ export function SalesHistoryDialog({
                                   const text = `Olá, ${name}! Tudo bem? 💜\n\nPassando para enviar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${m.productName}\n• *Valor pendente:* ${formatBRL(remaining)}\n\nChave Pix da loja disponível para pagamento. Se já efetuou, por favor desconsidere!`
                                   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
                                 }}
-                                className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0 gap-1 dark:text-emerald-400"
+                                className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0 gap-1 font-semibold dark:text-emerald-400"
                                 title="Cobrar via WhatsApp"
                               >
                                 <Share2 className="h-3 w-3" />
-                                <span className="hidden sm:inline">WhatsApp</span>
+                                <span>Cobrar</span>
                               </Button>
                               <Button
                                 size="sm"
                                 disabled={isPending}
                                 onClick={() => handleReceive(m.id, m.customerName || m.productName, totalNum, paidNum)}
-                                className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0"
+                                className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-7 px-2.5 text-xs rounded-lg cursor-pointer shrink-0 shadow-sm"
                               >
                                 Receber
                               </Button>
@@ -416,8 +416,9 @@ export function SalesHistoryDialog({
                             variant="ghost"
                             disabled={isPending}
                             onClick={() => onEditSale(m)}
-                            className="h-8 w-8 text-muted-foreground hover:text-brand-purple hover:bg-brand-purple/10 rounded-lg shrink-0"
+                            className="h-7 w-7 text-muted-foreground hover:text-brand-purple hover:bg-brand-purple/10 rounded-lg shrink-0"
                             aria-label="Editar"
+                            title="Editar venda"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -426,8 +427,9 @@ export function SalesHistoryDialog({
                             variant="ghost"
                             disabled={isPending}
                             onClick={() => handleUndo(m.id)}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
                             aria-label="Desfazer"
+                            title="Desfazer venda"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                           </Button>

@@ -156,7 +156,7 @@ export function ProductsListDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col gap-4 overflow-hidden">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] flex flex-col gap-4 overflow-hidden">
         <DialogHeader className="flex flex-row items-center justify-between gap-4">
           <div>
             <DialogTitle className="text-brand-purple">Tabela de Produtos</DialogTitle>
@@ -241,16 +241,16 @@ export function ProductsListDialog({
         </div>
 
         <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 rounded-xl border border-border bg-card">
-          <table className="w-full text-left border-collapse min-w-[600px] table-fixed">
+          <table className="w-full text-left border-collapse min-w-[920px]">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider font-bold">
-                <th className="py-3 px-4 w-[35%]">Produto</th>
-                <th className="py-3 px-2 w-[12%]">Categoria</th>
-                <th className="py-3 px-2 w-[10%] text-center">Tam</th>
-                <th className="py-3 px-3 w-[15%]">Cores</th>
-                <th className="py-3 px-3 w-[15%]">Preço / Margem</th>
-                <th className="py-3 px-4 w-[23%] text-center">Ajuste Estoque</th>
-                <th className="py-3 px-4 w-[15%] text-right">Ações</th>
+                <th className="py-3 px-4 min-w-[200px]">Produto</th>
+                <th className="py-3 px-3 w-[120px] shrink-0">Categoria</th>
+                <th className="py-3 px-2 w-[70px] text-center shrink-0">Tam</th>
+                <th className="py-3 px-3 w-[140px] shrink-0">Cores</th>
+                <th className="py-3 px-3 w-[140px] shrink-0">Preço / Margem</th>
+                <th className="py-3 px-4 w-[140px] text-center shrink-0">Ajuste Estoque</th>
+                <th className="py-3 px-4 w-[90px] text-right shrink-0">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-sm">
@@ -286,15 +286,15 @@ export function ProductsListDialog({
                           )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-2 text-muted-foreground text-xs truncate">
+                      <td className="py-3.5 px-3 text-muted-foreground text-xs truncate w-[120px] shrink-0">
                         {p.category}
                       </td>
-                      <td className="py-3.5 px-2 text-center">
+                      <td className="py-3.5 px-2 text-center w-[70px] shrink-0">
                         <Badge variant="outline" className="font-semibold">
                           {p.size}
                         </Badge>
                       </td>
-                      <td className="py-3.5 px-3 text-xs text-muted-foreground">
+                      <td className="py-3.5 px-3 text-xs text-muted-foreground w-[140px] shrink-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span>{p.colors || '—'}</span>
                           {p.colors && p.colors.includes(',') && (
@@ -304,7 +304,7 @@ export function ProductsListDialog({
                           )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-3 font-medium text-foreground">
+                      <td className="py-3.5 px-3 font-medium text-foreground w-[140px] shrink-0 whitespace-nowrap">
                         <div className="flex flex-col">
                           <span>{formatBRL(Number(p.price))}</span>
                           {p.costPrice && (
@@ -319,7 +319,7 @@ export function ProductsListDialog({
                           )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 w-[140px] shrink-0 whitespace-nowrap">
                         <div className="flex items-center justify-center gap-2">
                           <Button
                             size="icon"
@@ -345,7 +345,7 @@ export function ProductsListDialog({
                           </Button>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right w-[90px] shrink-0 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             size="icon"

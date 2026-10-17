@@ -644,7 +644,7 @@ export function Insights({
               {pendingDebts.sales.map((sale) => {
                 const due = Number(sale.total) - Number(sale.amountPaid || '0')
                 return (
-                  <div key={sale.id} className="p-3.5 rounded-xl border border-border/80 bg-accent/30 flex justify-between items-center text-sm">
+                  <div key={sale.id} className="p-3.5 rounded-xl border border-border/80 bg-accent/30 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-sm">
                     <div>
                       <p className="font-extrabold text-foreground">{sale.customerName || 'Cliente sem nome'}</p>
                       <p className="text-xs text-muted-foreground font-semibold mt-0.5">
@@ -659,10 +659,10 @@ export function Insights({
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
-                      <div className="text-right">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                      <div className="text-left sm:text-right">
                         <p className="font-bold text-amber-600 dark:text-amber-400">{formatBRL(due)}</p>
-                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">restantes</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold">restantes</p>
                       </div>
                       <button
                         type="button"
@@ -671,10 +671,10 @@ export function Insights({
                           const text = `Olá, ${name}! Tudo bem? 💜\n\nPassando para enviar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${sale.productName}\n• *Valor pendente:* ${formatBRL(due)}\n\nChave Pix da loja disponível para pagamento. Se já efetuou, por favor desconsidere!`
                           window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 text-[11px] font-bold text-emerald-600 transition-colors cursor-pointer dark:text-emerald-400"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-600 transition-colors cursor-pointer dark:text-emerald-400 shrink-0"
                         title="Cobrar via WhatsApp"
                       >
-                        <Share2 className="h-3 w-3" />
+                        <Share2 className="h-3.5 w-3.5" />
                         <span>WhatsApp</span>
                       </button>
                     </div>
