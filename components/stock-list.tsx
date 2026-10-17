@@ -368,7 +368,7 @@ const ProductCard = memo(function ProductCard({
                   : 'bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-500/20'
               }`}
             >
-              Estoque Baixo
+              {product.quantity === 0 ? 'Esgotado' : 'Últimas peças'}
             </Badge>
           )}
         </div>
@@ -394,9 +394,13 @@ const ProductCard = memo(function ProductCard({
           </span>
         </div>
         <p className="mt-1 text-xs">
-          {lowStock ? (
-            <span className="font-medium text-destructive">
-              Estoque baixo: {product.quantity} un.
+          {product.quantity === 0 ? (
+            <span className="font-semibold text-destructive">
+              Esgotado (0 un. em estoque)
+            </span>
+          ) : lowStock ? (
+            <span className="font-semibold text-amber-600 dark:text-amber-400">
+              Últimas {product.quantity} {product.quantity === 1 ? 'peça' : 'peças'} restantes
             </span>
           ) : (
             <span className="text-muted-foreground">

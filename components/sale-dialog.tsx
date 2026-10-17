@@ -54,6 +54,7 @@ export function SaleDialog({
   ) => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Todos')
   const [sizeFilter, setSizeFilter] = useState('Todos')
@@ -262,10 +263,12 @@ export function SaleDialog({
     setCustomerName('')
     setInstallments(1)
     setIsAddingCustom(false)
+    setIsSubmitting(false)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isPending || isSubmitting) return
     if (selectedItems.length === 0) {
       return toast.error('Selecione pelo menos um produto')
     }
@@ -273,6 +276,7 @@ export function SaleDialog({
       return toast.error('Informe o nome do cliente para pagamentos pendentes')
     }
 
+    setIsSubmitting(true)
     startTransition(async () => {
       try {
         const payload = selectedItems.map((item) => ({
@@ -314,6 +318,8 @@ export function SaleDialog({
           }
         }
         toast.error(msg)
+      } finally {
+        setIsSubmitting(false)
       }
     })
   }
@@ -775,10 +781,10 @@ export function SaleDialog({
             {/* FIXED CONTRAST BUTTON: text-white instead of text-primary-foreground */}
             <Button
               type="submit"
-              disabled={isPending || selectedItems.length === 0}
-              className="bg-gradient-to-r from-brand-purple to-primary text-white font-bold cursor-pointer hover:scale-[1.01] transition-transform"
+              disabled={isPending || isSubmitting || selectedItems.length === 0}
+              className="bg-gradient-to-r from-brand-purple to-primary text-white font-bold cursor-pointer hover:scale-[1.01] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isPending ? 'Registrando...' : 'Confirmar venda'}
+              {isPending || isSubmitting ? 'Registrando...' : 'Confirmar venda'}
             </Button>
           </DialogFooter>
         </form>

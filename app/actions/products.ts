@@ -149,6 +149,23 @@ export async function adjustStock(id: number, delta: number) {
         type: 'restock',
         sku: product.sku || null,
       })
+    } else if (delta < 0) {
+      const removedQty = Math.min(product.quantity, Math.abs(delta))
+      if (removedQty > 0) {
+        await tx.insert(sales).values({
+          userId,
+          productId: product.id,
+          productName: product.name,
+          category: product.category,
+          size: product.size,
+          quantity: removedQty,
+          unitPrice: product.price,
+          total: '0.00',
+          paymentMethod: '—',
+          type: 'adjustment',
+          sku: product.sku || null,
+        })
+      }
     }
   })
 

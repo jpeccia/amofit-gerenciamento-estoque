@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition, useMemo } from 'react'
-import { RotateCcw, ShoppingBag, Undo2, Package } from 'lucide-react'
+import { RotateCcw, ShoppingBag, Undo2, Package, TrendingDown, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBRL, type Movement } from '@/lib/constants'
 
@@ -135,6 +135,10 @@ export function RecentHistory({
             iconElement = <Package className="h-4 w-4" />
             iconClass =
               'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+          } else if (m.type === 'adjustment') {
+            iconElement = <TrendingDown className="h-4 w-4" />
+            iconClass =
+              'bg-amber-500/10 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
           }
 
           return (
@@ -157,6 +161,8 @@ export function RecentHistory({
                       ? 'Venda:'
                       : m.type === 'return'
                       ? 'Retorno:'
+                      : m.type === 'adjustment'
+                      ? 'Baixa:'
                       : 'Entrada:'}{' '}
                     {((m as any).items && (m as any).items.length > 1) ? (
                       ((m as any).items as Movement[]).map((item, idx) => (
@@ -193,6 +199,8 @@ export function RecentHistory({
                       ? formatBRL(Number(m.total))
                       : m.type === 'return'
                       ? 'Retorno'
+                      : m.type === 'adjustment'
+                      ? `-${m.quantity} un.`
                       : `+${m.quantity} un.`}
                   </span>
                   {m.type === 'sale' && (
@@ -211,26 +219,43 @@ export function RecentHistory({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {m.type === 'sale' && m.paymentStatus === 'pending' && (
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => {
-                      startTransition(async () => {
-                        try {
-                          await onMarkSaleAsPaid(m.id)
-                          toast.success('Pagamento recebido com sucesso!')
-                        } catch {
-                          toast.error('Erro ao registrar recebimento')
-                        }
-                      })
-                    }}
-                    className="flex items-center text-xs font-extrabold bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-xl shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer dark:bg-amber-600 dark:hover:bg-amber-700"
-                    aria-label={`Marcar venda de ${m.productName} como paga`}
-                  >
-                    Receber
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const due = Number(m.total) - Number(m.amountPaid || 0)
+                        const firstName = m.customerName ? m.customerName.trim().split(' ')[0] : 'Cliente'
+                        const text = `Olá, ${firstName}! Tudo bem? 💜\n\nPassando para compartilhar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${m.productName}\n• *Valor pendente:* ${formatBRL(due)}\n\nChave Pix da loja disponível para pagamento. Se já tiver feito, desconsidere essa mensagem!`
+                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
+                      }}
+                      className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer dark:text-emerald-400"
+                      title="Lembrete via WhatsApp"
+                      aria-label="Lembrete de cobrança via WhatsApp"
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            await onMarkSaleAsPaid(m.id)
+                            toast.success('Pagamento recebido com sucesso!')
+                          } catch {
+                            toast.error('Erro ao registrar recebimento')
+                          }
+                        })
+                      }}
+                      className="flex items-center text-xs font-extrabold bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-xl shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer dark:bg-amber-600 dark:hover:bg-amber-700"
+                      aria-label={`Marcar venda de ${m.productName} como paga`}
+                    >
+                      Receber
+                    </button>
+                  </>
                 )}
 
                 <button

@@ -232,7 +232,18 @@ export function ProductsListDialog({
                     <tr key={p.id} className="hover:bg-muted/15 transition-colors">
                       <td className="py-3.5 px-4 font-semibold text-foreground truncate">
                         <div className="flex flex-col">
-                          <span>{p.name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{p.name}</span>
+                            {p.quantity === 0 ? (
+                              <span className="text-[9px] font-bold bg-red-500/15 text-red-600 border border-red-500/30 px-1.5 py-0.2 rounded-full dark:bg-red-950/40 dark:text-red-400">
+                                Esgotado
+                              </span>
+                            ) : p.quantity < 3 ? (
+                              <span className="text-[9px] font-bold bg-amber-500/15 text-amber-600 border border-amber-500/30 px-1.5 py-0.2 rounded-full dark:bg-amber-950/40 dark:text-amber-400">
+                                Últimas {p.quantity} un.
+                              </span>
+                            ) : null}
+                          </div>
                           {p.sku && (
                             <span className="text-[10px] text-muted-foreground font-mono font-normal">
                               Ref: {p.sku}
@@ -266,7 +277,7 @@ export function ProductsListDialog({
                           >
                             <Minus className="h-3.5 w-3.5" />
                           </Button>
-                          <span className={`w-8 text-center font-bold text-sm ${isLow ? 'text-destructive font-black' : 'text-foreground'}`}>
+                          <span className={`w-8 text-center font-bold text-sm ${p.quantity === 0 ? 'text-destructive font-black' : p.quantity < 3 ? 'text-amber-600 dark:text-amber-400 font-black' : 'text-foreground'}`}>
                             {p.quantity}
                           </span>
                           <Button

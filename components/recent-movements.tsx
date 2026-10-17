@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ShoppingBag, Undo2, Package } from 'lucide-react'
+import { ShoppingBag, Undo2, Package, TrendingDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatBRL, type Movement } from '@/lib/constants'
 
@@ -19,7 +19,7 @@ function formatTime(date: Date): string {
 }
 
 /**
- * Renders a full audit trail of recent movements (sales, returns, restocks).
+ * Renders a full audit trail of recent movements (sales, returns, restocks, adjustments).
  * Heading is styled in deep brand purple.
  *
  * @param props Component properties containing movements list.
@@ -42,6 +42,7 @@ export function RecentMovements({ movements }: { movements: Movement[] }) {
           const isSale = m.type === 'sale'
           const isReturn = m.type === 'return'
           const isRestock = m.type === 'restock'
+          const isAdjustment = m.type === 'adjustment'
 
           let iconElement = null
           let iconClass = ''
@@ -56,6 +57,10 @@ export function RecentMovements({ movements }: { movements: Movement[] }) {
             iconElement = <Package className="h-4 w-4" />
             iconClass =
               'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+          } else if (isAdjustment) {
+            iconElement = <TrendingDown className="h-4 w-4" />
+            iconClass =
+              'bg-amber-500/10 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
           }
 
           return (
@@ -91,6 +96,12 @@ export function RecentMovements({ movements }: { movements: Movement[] }) {
               ) : isReturn ? (
                 <Badge variant="secondary" className="shrink-0">
                   Retorno
+                </Badge>
+              ) : isAdjustment ? (
+                <Badge
+                  className="shrink-0 font-bold border text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-500/20"
+                >
+                  Baixa
                 </Badge>
               ) : (
                 <Badge

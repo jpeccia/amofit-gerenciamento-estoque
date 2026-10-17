@@ -16,7 +16,8 @@ import {
   RefreshCw,
   BarChart3,
   CreditCard,
-  Layers
+  Layers,
+  Share2
 } from 'lucide-react'
 import { formatBRL, formatDateTime, type Movement, type Product } from '@/lib/constants'
 
@@ -520,9 +521,24 @@ export function Insights({
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <p className="font-bold text-amber-600 dark:text-amber-400">{formatBRL(due)}</p>
-                      <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">restantes</p>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
+                      <div className="text-right">
+                        <p className="font-bold text-amber-600 dark:text-amber-400">{formatBRL(due)}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">restantes</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const name = sale.customerName ? sale.customerName.trim().split(' ')[0] : 'Cliente'
+                          const text = `Olá, ${name}! Tudo bem? 💜\n\nPassando para enviar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${sale.productName}\n• *Valor pendente:* ${formatBRL(due)}\n\nChave Pix da loja disponível para pagamento. Se já efetuou, por favor desconsidere!`
+                          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 text-[11px] font-bold text-emerald-600 transition-colors cursor-pointer dark:text-emerald-400"
+                        title="Cobrar via WhatsApp"
+                      >
+                        <Share2 className="h-3 w-3" />
+                        <span>WhatsApp</span>
+                      </button>
                     </div>
                   </div>
                 )

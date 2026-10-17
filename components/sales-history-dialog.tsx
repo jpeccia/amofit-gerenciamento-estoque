@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useTransition } from 'react'
-import { Search, RotateCcw, Download, Pencil, FileText } from 'lucide-react'
+import { Search, RotateCcw, Download, Pencil, FileText, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -385,14 +385,31 @@ export function SalesHistoryDialog({
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {isPendingPayment && (
-                            <Button
-                              size="sm"
-                              disabled={isPending}
-                              onClick={() => handleReceive(m.id, m.customerName || m.productName, totalNum, paidNum)}
-                              className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0"
-                            >
-                              Receber
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const remaining = totalNum - paidNum
+                                  const name = m.customerName ? m.customerName.trim().split(' ')[0] : 'Cliente'
+                                  const text = `Olá, ${name}! Tudo bem? 💜\n\nPassando para enviar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${m.productName}\n• *Valor pendente:* ${formatBRL(remaining)}\n\nChave Pix da loja disponível para pagamento. Se já efetuou, por favor desconsidere!`
+                                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
+                                }}
+                                className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0 gap-1 dark:text-emerald-400"
+                                title="Cobrar via WhatsApp"
+                              >
+                                <Share2 className="h-3 w-3" />
+                                <span className="hidden sm:inline">WhatsApp</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={isPending}
+                                onClick={() => handleReceive(m.id, m.customerName || m.productName, totalNum, paidNum)}
+                                className="bg-amber-500 hover:bg-amber-600 text-white font-bold h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0"
+                              >
+                                Receber
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="icon"
