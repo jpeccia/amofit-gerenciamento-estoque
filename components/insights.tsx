@@ -22,6 +22,7 @@ import {
   BadgePercent,
 } from 'lucide-react'
 import { formatBRL, formatDateTime, type Movement, type Product } from '@/lib/constants'
+import { formatWhatsAppDebtReminder } from '@/lib/pix-config'
 
 /**
  * Calculates and displays store insights strictly using real database metrics.
@@ -667,8 +668,14 @@ export function Insights({
                       <button
                         type="button"
                         onClick={() => {
-                          const name = sale.customerName ? sale.customerName.trim().split(' ')[0] : 'Cliente'
-                          const text = `Olá, ${name}! Tudo bem? 💜\n\nPassando para enviar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${sale.productName}\n• *Valor pendente:* ${formatBRL(due)}\n\nChave Pix da loja disponível para pagamento. Se já efetuou, por favor desconsidere!`
+                          const itemsDesc = `${sale.quantity}x ${sale.productName} (${sale.size})`
+                          const text = formatWhatsAppDebtReminder({
+                            customerName: sale.customerName,
+                            itemsDescription: itemsDesc,
+                            totalAmount: Number(sale.total),
+                            amountPaid: Number(sale.amountPaid || '0'),
+                            remainingAmount: due,
+                          })
                           window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
                         }}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-600 transition-colors cursor-pointer dark:text-emerald-400 shrink-0"

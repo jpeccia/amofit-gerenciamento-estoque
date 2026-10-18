@@ -4,6 +4,7 @@ import { useTransition, useMemo } from 'react'
 import { RotateCcw, ShoppingBag, Undo2, Package, TrendingDown, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBRL, type Movement } from '@/lib/constants'
+import { formatWhatsAppDebtReminder } from '@/lib/pix-config'
 
 /**
  * Format a Date object or timestamp to a time string (HH:MM).
@@ -226,8 +227,14 @@ export function RecentHistory({
                       type="button"
                       onClick={() => {
                         const due = Number(m.total) - Number(m.amountPaid || 0)
-                        const firstName = m.customerName ? m.customerName.trim().split(' ')[0] : 'Cliente'
-                        const text = `Olá, ${firstName}! Tudo bem? 💜\n\nPassando para compartilhar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${m.productName}\n• *Valor pendente:* ${formatBRL(due)}\n\nChave Pix da loja disponível para pagamento. Se já tiver feito, desconsidere essa mensagem!`
+                        const itemsDesc = `${m.quantity}x ${m.productName} (${m.size})`
+                        const text = formatWhatsAppDebtReminder({
+                          customerName: m.customerName,
+                          itemsDescription: itemsDesc,
+                          totalAmount: Number(m.total),
+                          amountPaid: Number(m.amountPaid || 0),
+                          remainingAmount: due,
+                        })
                         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
                       }}
                       className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer dark:text-emerald-400"

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatBRL, type Movement, type Product } from '@/lib/constants'
 import { generateFullCSV, generateReportPDF } from '@/components/report-generator'
+import { formatWhatsAppDebtReminder } from '@/lib/pix-config'
 
 /**
  * Format a Date object or timestamp to a readable date/time string.
@@ -391,8 +392,17 @@ export function SalesHistoryDialog({
                                 variant="outline"
                                 onClick={() => {
                                   const remaining = totalNum - paidNum
-                                  const name = m.customerName ? m.customerName.trim().split(' ')[0] : 'Cliente'
-                                  const text = `Olá, ${name}! Tudo bem? 💜\n\nPassando para enviar o lembrete da sua compra na *Amo Fit*:\n• *Item:* ${m.productName}\n• *Valor pendente:* ${formatBRL(remaining)}\n\nChave Pix da loja disponível para pagamento. Se já efetuou, por favor desconsidere!`
+                                  const itemsDesc = (m as any).items && (m as any).items.length > 0
+                                    ? ((m as any).items as Movement[]).map((i) => `${i.quantity}x ${i.productName} (${i.size})`).join(' + ')
+                                    : `${m.quantity}x ${m.productName} (${m.size})`
+
+                                  const text = formatWhatsAppDebtReminder({
+                                    customerName: m.customerName,
+                                    itemsDescription: itemsDesc,
+                                    totalAmount: totalNum,
+                                    amountPaid: paidNum,
+                                    remainingAmount: remaining,
+                                  })
                                   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
                                 }}
                                 className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 h-7 px-2 text-xs rounded-lg cursor-pointer shrink-0 gap-1 font-semibold dark:text-emerald-400"

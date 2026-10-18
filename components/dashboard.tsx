@@ -9,6 +9,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Package,
+  QrCode,
 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import { SalesHistoryDialog } from '@/components/sales-history-dialog'
 import { ProductsListDialog } from '@/components/products-list-dialog'
 import { EditProductDialog } from '@/components/edit-product-dialog'
 import { EditSaleDialog } from '@/components/edit-sale-dialog'
+import { PixConfigDialog } from '@/components/pix-config-dialog'
 import {
   Dialog,
   DialogContent,
@@ -75,6 +77,7 @@ export function Dashboard({
   const [editOpen, setEditOpen] = useState(false)
   const [editSale, setEditSale] = useState<Movement | null>(null)
   const [editSaleOpen, setEditSaleOpen] = useState(false)
+  const [pixConfigOpen, setPixConfigOpen] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -294,15 +297,27 @@ export function Dashboard({
               className="h-24 w-auto object-contain mix-blend-multiply"
             />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="text-muted-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only sm:ml-2">Sair</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPixConfigOpen(true)}
+              className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 gap-1.5 h-9 rounded-xl font-bold cursor-pointer shadow-sm"
+              title="Configurar Chave Pix da Loja"
+            >
+              <QrCode className="h-4 w-4" />
+              <span className="hidden sm:inline">Chave Pix</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-muted-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">Sair</span>
+            </Button>
+          </div>
         </header>
 
         <SummaryHeader userName={userName} summary={summary} />
@@ -470,6 +485,10 @@ export function Dashboard({
         sale={editSale}
         products={products}
         onUpdateSale={handleUpdateSale}
+      />
+      <PixConfigDialog
+        open={pixConfigOpen}
+        onOpenChange={setPixConfigOpen}
       />
 
       <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
